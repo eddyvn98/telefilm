@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS v4 Alpha/Beta -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>Telegram Film</title>
+    <style type="text/tailwindcss">
+        @theme {
+            --color-primary: #e50914;
+            --color-glass: rgba(255, 255, 255, 0.05);
+            --color-glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        @utility glass {
+            background-color: var(--color-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--color-glass-border);
+        }
+
+        .movie-card:active {
+            transform: scale(0.95);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+
+<body class="bg-[#0f0f0f] text-white font-['Outfit'] h-full overflow-hidden">
+    <div id="app" class="relative h-full flex flex-col">
+        <!-- Loading Screen -->
+        <div id="loading"
+            class="screen active fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0f0f0f] transition-opacity duration-500">
+            <div class="relative w-16 h-16">
+                <div class="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-t-primary rounded-full animate-spin"></div>
+            </div>
+            <p class="mt-4 text-white/60 font-medium tracking-wide">Authenticating...</p>
+        </div>
+
+        <!-- Home Screen -->
+        <div id="home" class="screen hidden h-full overflow-y-auto no-scrollbar">
+            <header
+                class="sticky top-0 z-40 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm">
+                <div class="text-2xl font-bold tracking-tighter text-primary">CINEMA</div>
+                <div class="user-profile flex items-center gap-2" id="user-profile">
+                    <!-- User info will be injected here -->
+                </div>
+            </header>
+
+            <main class="pb-20 max-w-lg mx-auto md:max-w-4xl">
+                <div class="px-4 md:px-6 mb-6">
+                    <div class="relative">
+                        <input type="text" id="search-input"
+                            class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-white/30"
+                            placeholder="Movies, actors, genres...">
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-white/30">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="featured-hero" class="px-6 mb-8 group">
+                    <!-- Dynamic Hero Card -->
+                </div>
+
+                <div class="mb-8">
+                    <div class="flex items-center justify-between px-6 mb-4">
+                        <h3 class="text-lg font-bold tracking-tight">Latest Uploads</h3>
+                        <a href="#" class="text-xs font-semibold text-primary uppercase tracking-widest">See All</a>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 px-4 md:px-6"
+                        id="latest-movies">
+                        <!-- Movie items -->
+                    </div>
+                </div>
+
+                <div id="search-results" class="hidden px-4 md:px-6" style="display:none;">
+                    <h3 class="text-lg font-bold mb-4">Search Results</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4" id="search-grid"></div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Player Screen -->
+        <div id="player-screen" class="screen overlay hidden fixed inset-0 z-50 bg-[#0f0f0f] flex flex-col pt-safe">
+            <div class="relative flex-1 flex flex-col justify-center">
+                <button
+                    class="absolute top-6 right-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md hover:bg-white/20 transition-all"
+                    onclick="closePlayer()">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+
+                <video id="video-player" class="w-full h-auto max-h-[80vh] shadow-2xl shadow-primary/10" controls
+                    controlsList="nodownload">
+                    Your browser does not support the video tag.
+                </video>
+
+                <div class="player-info p-8 bg-gradient-to-t from-black to-transparent">
+                    <h2 id="player-title" class="text-3xl font-bold mb-2">Movie Title</h2>
+                    <p id="player-desc" class="text-white/60 leading-relaxed max-w-2xl">Description</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

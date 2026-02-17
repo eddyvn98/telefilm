@@ -1,0 +1,23 @@
+# .gitignore
+.env
+*.session
+*.session-journal
+*.db
+*.db-journal
+*.log
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+
+# Debug files
+diag_results.txt
+diag_test.txt
+peer_results.txt
+peer_test.log
+server.log
+
+# Static assets that might be generated
+frontend/static/uploads/
+thumbnails/
+backdrops/

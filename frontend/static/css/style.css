@@ -1,0 +1,30 @@
+/* Basic resets for Telegram Web App integration */
+:root {
+    --primary: #e50914;
+}
+
+::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+body {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+/* Base Utility for Hidden State */
+.screen.hidden {
+    display: none !important;
+}
+
+/* Pulse animation for loading placeholders if needed */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .5; }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

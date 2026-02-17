@@ -1,0 +1,91 @@
+from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
+from ..services.telegram_client import TelegramClientService
+from ..core.database import get_db, AsyncSession
+from ..core.models import Movie
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
+
+router = APIRouter()
+
+@router.get("/{movie_id}")
+async def stream_video(
+    movie_id: int, 
+    request: Request,
+    range: str = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Stream video content. Supports Range requests for seeking.
+    """
+    # 1. Get Movie Metadata
+    result = await db.execute(select(Movie).where(Movie.id == movie_id))
+    movie = result.scalar_one_or_none()
+    
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    
+    print(f"DEBUG: Streaming movie {movie_id}, file_id: {movie.file_id}", flush=True)
+    # file_id format expected: "channel_id:message_id" (e.g., "-100123456789:123")
+    try:
+        channel_str, msg_str = movie.file_id.split(":")
+        channel_id = int(channel_str)
+        message_id = int(msg_str)
+        print(f"DEBUG: Parsed channel_id: {channel_id}, message_id: {message_id}", flush=True)
+    except ValueError:
+        print(f"ERROR: Invalid file_id format: {movie.file_id}", flush=True)
+        raise HTTPException(status_code=500, detail="Invalid file_id format in DB")
+
+    client_service = TelegramClientService.get_instance()
+    await client_service.start() # Ensure started
+    
+    file_size = await client_service.get_file_size(channel_id, message_id)
+    if file_size == 0:
+         raise HTTPException(status_code=404, detail="File not found on Telegram")
+
+    # 2. Parse Range Header
+    start = 0
+    end = file_size - 1
+    
+    if range:
+        try:
+            # Range: bytes=0-1023
+            range_key, range_val = range.split("=")
+            if range_key.strip() == "bytes":
+                range_start, range_end = range_val.split("-")
+                start = int(range_start)
+                if range_end:
+                    end = int(range_end)
+        except ValueError:
+            pass # Fallback to full file if invalid range
+            
+    # Ensure end is within bounds
+    if end >= file_size:
+        end = file_size - 1
+        
+    content_length = end - start + 1
+    
+    # 3. Stream Generator
+    async def iterfile():
+        async for chunk in client_service.get_file_stream(
+            channel_id, 
+            message_id, 
+            offset=start, 
+            limit=content_length
+        ):
+            yield chunk
+
+    headers = {
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(content_length),
+        "Content-Type": "video/mp4", # Assuming MP4 for simplicity, ideally detect mime
+    }
+    
+    return StreamingResponse(
+        iterfile(),
+        status_code=206,
+        headers=headers,
+        media_type="video/mp4"
+    )
