@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, Table
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from typing import List, Optional
 
@@ -51,3 +51,16 @@ class Movie(Base):
     created_at: Mapped[Optional[str]] = mapped_column(String) # ISO Format
     
     categories: Mapped[List["Category"]] = relationship(secondary=movie_categories, back_populates="movies")
+
+class WatchHistory(Base):
+    __tablename__ = "watch_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_telegram_id: Mapped[str] = mapped_column(String, index=True)
+    movie_id: Mapped[int] = mapped_column(Integer, ForeignKey("movies.id"), index=True)
+    progress_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    watch_count: Mapped[int] = mapped_column(Integer, default=1)
+    last_watched_at: Mapped[str] = mapped_column(String)  # ISO Format
+
+    movie: Mapped["Movie"] = relationship("Movie", lazy="joined")

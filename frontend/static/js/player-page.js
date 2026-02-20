@@ -3,6 +3,7 @@ import { initPlyr, setupHLS } from './player.js';
 import { exitCinemaMode, handleOrientationChange } from './player-cinema.js';
 import { renderMovieList, showResumeBanner } from './ui.js';
 import { initPlayerGestures } from './player-gestures.js';
+import { startTracking, stopTracking, flushNow } from './history.js';
 
 function initSoftwareVolume() {
     if (!state.player) return;
@@ -48,11 +49,13 @@ export function loadMovie(id) {
     elements.playerDate.innerHTML = `<i class="fa-solid fa-calendar mr-1"></i>${new Date(movie.created_at || Date.now()).toLocaleDateString('vi-VN')}`;
     elements.playerDescription.textContent = movie.description || 'Không có mô tả.';
 
-    // Render recommendations (excluding current movie and shuffled)
+    // Render recommendations (excluding current movie)
     const otherMovies = state.movies.filter(m => m.id !== id);
     const shuffled = [...otherMovies].sort(() => Math.random() - 0.5);
-    const recommendations = shuffled.slice(0, 6);
-    renderMovieList(recommendations, elements.playerRecommendations);
+    renderMovieList(shuffled.slice(0, 6), elements.playerRecommendations);
+
+    // Stop previous tracking before starting new one
+    stopTracking();
 
     // Prepare Player
     if (!state.player) {
@@ -106,6 +109,9 @@ export function loadMovie(id) {
         }
 
         state.player.play().catch(() => { });
+
+        // Start history tracking for new source
+        startTracking(id, () => state.player);
     }
 
     // Scroll to top of player screen

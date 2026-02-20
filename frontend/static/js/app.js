@@ -2,6 +2,8 @@ import { tg, screens, elements, state, updateState } from './state.js';
 import { login, fetchMovies } from './api.js';
 import { renderUser, renderHero, applySortAndRender, showAccessDenied, renderSkeletons } from './ui.js';
 import { exitCinemaMode, showCinemaControls, handleOrientationChange } from './player-cinema.js';
+import { renderContinueWatching, renderRecommendationSection } from './history-ui.js';
+import { getWatchHistory, getRecommendations } from './api.js';
 import './player-page.js'; // Registers window.playMovie
 
 async function init() {
@@ -21,10 +23,11 @@ async function init() {
         updateState({ movies: movies.length > 0 ? movies : getMockMovies() });
 
         renderHero(state.movies[0]);
-        applySortAndRender(); // This will also init the feed via ui.js
+        applySortAndRender();
 
         initGestures();
         initFullscreenListeners();
+        loadHistorySections(); // Load watch history & recommendations (non-blocking)
 
         // Reveal Home
         setTimeout(() => {
@@ -53,6 +56,20 @@ function initFullscreenListeners() {
         if (!tg.isFullscreen && state.isCinemaMode) exitCinemaMode();
     });
 }
+
+async function loadHistorySections() {
+    try {
+        const [history, recommendations] = await Promise.all([
+            getWatchHistory(),
+            getRecommendations(),
+        ]);
+        renderContinueWatching(history);
+        renderRecommendationSection(recommendations);
+    } catch (e) {
+        // Non-critical – silently skip if user has no history yet
+    }
+}
+
 
 // ── UI Handlers (Global Scope for HTML) ───────────────────────────────────
 

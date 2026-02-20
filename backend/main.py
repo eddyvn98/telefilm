@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from .core.config import get_settings
 from .core.database import init_db
-from .routers import auth, catalog, stream, admin
+from .routers import auth, catalog, stream, admin, history
 from .services.telegram_client import TelegramClientService
 
 settings = get_settings()
@@ -72,3 +72,4 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["catalog"])
 app.include_router(stream.router, prefix="/api/stream", tags=["stream"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(history.router, prefix="/api/history", tags=["history"])
