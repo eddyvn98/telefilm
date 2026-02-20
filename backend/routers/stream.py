@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Request, Response, Query
 from fastapi.responses import StreamingResponse
 from ..services.telegram_client import TelegramClientService
 from ..core.database import get_db, AsyncSession
 from ..core.models import Movie
+from ..core.security import validate_telegram_data, get_settings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
@@ -14,11 +15,22 @@ async def stream_video(
     movie_id: int, 
     request: Request,
     range: str = Header(None),
+    init_data: str = Query(..., alias="init_data"),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Stream video content. Supports Range requests for seeking.
     """
+    # Authorization check
+    settings = get_settings()
+    user_data = validate_telegram_data(init_data)
+    telegram_id = str(user_data.get("id"))
+    
+    if settings.ALLOWED_TELEGRAM_IDS:
+        allowed_list = [i.strip() for i in settings.ALLOWED_TELEGRAM_IDS.split(",") if i.strip()]
+        if telegram_id not in allowed_list:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+
     # 1. Get Movie Metadata
     result = await db.execute(select(Movie).where(Movie.id == movie_id))
     movie = result.scalar_one_or_none()

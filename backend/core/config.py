@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     API_HASH: str = ""
     STORAGE_CHANNEL_ID: str = ""
     WEBAPP_URL: str = ""
+    UPLOAD_SPEED_LIMIT_MB: float = 0.0 # 0 means unlimited
+    ALLOWED_TELEGRAM_IDS: str = "" # Comma-separated list of IDs
     
     # Security
     SECRET_KEY: str = "supersecretkey"

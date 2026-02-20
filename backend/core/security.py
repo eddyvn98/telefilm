@@ -44,3 +44,19 @@ def validate_telegram_data(init_data: str) -> dict:
     # Parse user data
     user_data = json.loads(parsed_data.get("user", "{}"))
     return user_data
+
+from fastapi import Header
+
+async def authorized_user(x_telegram_init_data: str = Header(..., alias="X-Telegram-Init-Data")) -> dict:
+    """
+    Dependency to validate Telegram Init Data and check whitelist.
+    """
+    user_data = validate_telegram_data(x_telegram_init_data)
+    telegram_id = str(user_data.get("id"))
+    
+    # Whitelist check (Strict Mode)
+    allowed_list = [i.strip() for i in settings.ALLOWED_TELEGRAM_IDS.split(",") if i.strip()]
+    if telegram_id not in allowed_list:
+        raise HTTPException(status_code=403, detail="Unauthorized: User not in allowed list")
+            
+    return user_data

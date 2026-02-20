@@ -5,6 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from ..core.database import get_db
 from ..core.models import Movie, Category
+from ..core.security import authorized_user
 
 router = APIRouter()
 
@@ -27,7 +28,8 @@ async def list_movies(
     limit: int = 20, 
     search: Optional[str] = None,
     category_id: Optional[int] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(authorized_user)
 ):
     query = select(Movie)
     
@@ -44,7 +46,11 @@ async def list_movies(
     return movies
 
 @router.get("/movies/{movie_id}", response_model=MovieSchema)
-async def get_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
+async def get_movie(
+    movie_id: int, 
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(authorized_user)
+):
     result = await db.execute(select(Movie).where(Movie.id == movie_id))
     movie = result.scalar_one_or_none()
     if not movie:

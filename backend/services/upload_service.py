@@ -1,6 +1,9 @@
 import os
 import asyncio
 import logging
+import math
+import time
+from datetime import datetime
 from telethon import TelegramClient
 from sqlalchemy import select
 from ..core.config import get_settings
@@ -95,55 +98,7 @@ class UploadService:
                     from telethon.tl.functions.upload import SaveBigFilePartRequest
                     from telethon.tl.types import InputFileBig
 
-                    async def upload_file_fast(client, file_path, progress_callback):
-                        logger.info(f"Starting FastUploader for: {file_path}")
-                        file_size = os.path.getsize(file_path)
-                        part_size = 512 * 1024  # 512KB per part
-                        parts_count = math.ceil(file_size / part_size)
-                        
-                        file_id = int.from_bytes(os.urandom(8), 'big')
-                        semaphore = asyncio.Semaphore(8)
-                        
-                        start_time = time.time()
-                        last_update_time = [start_time]
-
-                        async def upload_part(part_index):
-                            async with semaphore:
-                                offset = part_index * part_size
-                                
-                                # Read data in a thread to avoid blocking the event loop
-                                def read_data():
-                                    with open(file_path, 'rb') as f:
-                                        f.seek(offset)
-                                        return f.read(part_size)
-                                
-                                data = await asyncio.to_thread(read_data)
-                                
-                                await client(SaveBigFilePartRequest(
-                                    file_id=file_id,
-                                    file_part=part_index,
-                                    file_total_parts=parts_count,
-                                    bytes=data
-                                ))
-                                
-                                if progress_callback:
-                                    current_sent = (part_index + 1) * part_size
-                                    if current_sent > file_size: current_sent = file_size
-                                    
-                                    now = time.time()
-                                    if now - last_update_time[0] >= 1.0:
-                                        progress_callback(current_sent, file_size)
-                                        last_update_time[0] = now
-
-                        print(f"DEBUG: Starting {parts_count} upload tasks...", flush=True)
-                        tasks = [upload_part(i) for i in range(parts_count)]
-                        await asyncio.gather(*tasks)
-                        
-                        return InputFileBig(
-                            id=file_id,
-                            parts=parts_count,
-                            name=os.path.basename(file_path)
-                        )
+                    file_size = os.path.getsize(file_path)
 
                     # Update status display for the frontend
                     last_update = [time.time()]
@@ -171,15 +126,25 @@ class UploadService:
                     
                     # Generate locally if possible
                     print(f"DEBUG: Generating thumbnails for {file}...", flush=True)
-                    ThumbnailService.generate_thumbnail(file_path, poster_path, timestamp="00:00:05")
-                    ThumbnailService.generate_thumbnail(file_path, backdrop_path, timestamp="00:00:45")
+                    thumb_success = ThumbnailService.generate_thumbnail(file_path, poster_path, timestamp="00:00:05")
+                    back_success = ThumbnailService.generate_thumbnail(file_path, backdrop_path, timestamp="00:00:45")
+                    
+                    if not thumb_success or not back_success:
+                        logger.error(f"❌ Thumbnail generation failed for {file}. Skipping upload (File might be corrupt).")
+                        self.progress["status"] = f"Skipped {file} (Corrupt?)"
+                        continue
                     
                     # DB paths (browser-accessible)
                     poster_url = f"/static/thumbnails/{safe_name}_poster.jpg"
                     backdrop_url = f"/static/backdrops/{safe_name}_back.jpg"
 
-                    logger.info("Executing parallel upload...")
-                    input_file = await upload_file_fast(client, file_path, wrapped_callback)
+                    logger.info("Executing native Telethon upload...")
+                    # Use Telethon's native uploader which handles parallel parts correctly
+                    input_file = await client.upload_file(
+                        file_path,
+                        part_size_kb=512,
+                        progress_callback=wrapped_callback
+                    )
                     
                     logger.info("Sending InputFile to Telegram...")
                     message = await client.send_file(
@@ -198,7 +163,9 @@ class UploadService:
                             poster_url=poster_url,
                             backdrop_url=backdrop_url,
                             release_year=2024,
-                            rating=0.0
+                            rating=0.0,
+                            size_bytes=file_size,
+                            created_at=datetime.now().isoformat()
                         )
                         db.add(movie)
                         await db.commit()

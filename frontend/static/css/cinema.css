@@ -1,0 +1,305 @@
+/* Cinema & Player Styles */
+
+#cinema-overlay {
+    position: fixed;
+    inset: 0;
+    background: black;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+}
+
+.plyr.cinema-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: black !important;
+}
+
+/* UI Clean-up for Cinema Mode & Global Transparency */
+.plyr__controls,
+.plyr__gradient--top,
+.plyr__gradient,
+.plyr--full-ui.plyr--video .plyr__controls,
+.cinema-mode-active .plyr--video .plyr__controls,
+.cinema-mode-active .plyr__gradient--top,
+.cinema-mode-active .plyr__gradient,
+.cinema-mode-active .plyr--full-ui.plyr--video .plyr__controls {
+    background: transparent !important;
+    background-image: none !important;
+}
+
+/* Ensure no safe-area padding is breaking the layout */
+.cinema-mode-active .plyr--video .plyr__controls {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* Hide any custom overlays that might be lingering */
+.cinema-mode-active #brightness-overlay,
+.cinema-mode-active .player-header {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+#cinema-overlay .plyr,
+#cinema-overlay .plyr__video-wrapper,
+#cinema-overlay video,
+#main-video-mount .plyr {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    object-fit: contain !important;
+}
+
+.cinema-mode-active .player-header {
+    display: none !important;
+}
+
+.cinema-close-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    z-index: 10001;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cinema-close-btn.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.cinema-close-btn:active {
+    transform: scale(0.9);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* YouTube Style Search Bar */
+.search-container {
+    padding: 12px 16px;
+    margin-top: 8px;
+}
+
+.search-bar-modern {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 8px 16px;
+    transition: all 0.3s;
+}
+
+.search-bar-modern:focus-within {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.1);
+}
+
+.search-input-modern {
+    background: none;
+    border: none;
+    color: white;
+    width: 100%;
+    margin-left: 10px;
+    font-size: 14px;
+    outline: none;
+}
+
+/* Tab Navigation */
+.tab-container {
+    display: flex;
+    padding: 8px 16px;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tab-container::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-pill {
+    white-space: nowrap;
+    padding: 6px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.tab-pill.active {
+    background: var(--color-primary);
+    color: black;
+    font-weight: 600;
+}
+
+/* Mini Player Feed */
+#player-feed {
+    padding-bottom: 80px;
+}
+
+.feed-item {
+    margin-bottom: 24px;
+}
+
+.poster-top-rounded {
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 16/9;
+}
+
+/* Skeleton Loader */
+.skeleton {
+    background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Gesture Indicators */
+.gesture-indicator {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    width: 60px;
+    padding: 12px 8px;
+    border-radius: 16px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 20;
+    /* Keep indicators visible but above layer */
+    pointer-events: none !important;
+}
+
+.gesture-indicator.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.indicator-bar {
+    width: 6px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.indicator-fill {
+    width: 100%;
+    height: 50%;
+    background: var(--color-primary, #ff0);
+}
+
+.dynamic-gesture-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 10 !important;
+    pointer-events: auto !important;
+}
+
+/* CRITICAL: Ensure Plyr controls are always on top */
+.plyr__controls,
+.plyr__control,
+.plyr__menu,
+.plyr__volume,
+.plyr__progress,
+.plyr__time,
+.plyr__menu__container {
+    z-index: 100 !important;
+    pointer-events: auto !important;
+}
+
+/* Ensure no clipping */
+.plyr--video .plyr__controls {
+    padding-bottom: constant(safe-area-inset-bottom) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* ── Mini Player ───────────────────────────────────────────────────────── */
+
+.mini-player {
+    position: fixed !important;
+    bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+    right: 20px;
+    width: 200px !important;
+    height: auto !important;
+    aspect-ratio: 16/9;
+    z-index: 1000 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transform: none !important;
+    animation: mini-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes mini-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.mini-player .plyr__controls {
+    padding: 5px !important;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.mini-player:hover .plyr__controls {
+    opacity: 1;
+}
+
+.mini-player .plyr__video-wrapper {
+    border-radius: 16px;
+}

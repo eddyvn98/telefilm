@@ -5,6 +5,21 @@ async function loadStats() {
 
         document.getElementById('stat-movies').innerText = data.total_movies;
 
+        // Update Limit UI
+        const limitDisplay = document.getElementById('limit-value-display');
+        const limitInput = document.getElementById('limit-input');
+        const limitSlider = document.getElementById('limit-slider');
+
+        if (data.upload_speed_limit > 0) {
+            limitDisplay.innerText = `${data.upload_speed_limit} MB/s`;
+            limitInput.value = data.upload_speed_limit;
+            limitSlider.value = data.upload_speed_limit > 10 ? 10 : data.upload_speed_limit;
+        } else {
+            limitDisplay.innerText = "Unlimited";
+            limitInput.value = 0;
+            limitSlider.value = 0;
+        }
+
         const uploadInfo = data.upload_status;
         const uploadStat = document.getElementById('stat-upload');
         const uploadSpeed = document.getElementById('stat-speed');
@@ -142,6 +157,44 @@ async function startScan() {
         btn.innerText = "Start Scanning & Uploading";
     }
 }
+
+async function saveSpeedLimit() {
+    const limitInput = document.getElementById('limit-input');
+    const limit = parseFloat(limitInput.value) || 0;
+
+    try {
+        const response = await fetch('/api/admin/config/upload-limit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ limit: limit })
+        });
+
+        if (response.ok) {
+            alert("Speed limit updated!");
+            loadStats();
+        } else {
+            alert("Failed to update speed limit.");
+        }
+    } catch (e) {
+        alert("Request failed.");
+    }
+}
+
+// Slider and Input Sync
+document.addEventListener('DOMContentLoaded', () => {
+    const slider = document.getElementById('limit-slider');
+    const input = document.getElementById('limit-input');
+
+    if (slider && input) {
+        slider.addEventListener('input', (e) => {
+            input.value = e.target.value;
+        });
+
+        input.addEventListener('input', (e) => {
+            slider.value = e.target.value;
+        });
+    }
+});
 
 // Polling for updates
 setInterval(loadStats, 3000);

@@ -3,35 +3,25 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Tailwind CSS v4 Alpha/Beta -->
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- External CSS Modules -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/cinema.css">
+
     <title>Telegram Film</title>
     <style type="text/tailwindcss">
-        @theme {
-            --color-primary: #e50914;
-            --color-glass: rgba(255, 255, 255, 0.05);
-            --color-glass-border: rgba(255, 255, 255, 0.1);
-        }
-
-        @utility glass {
-            background-color: var(--color-glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--color-glass-border);
-        }
-
-        .movie-card:active {
-            transform: scale(0.95);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        
-        /* Hide scrollbar */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Tailwind v4 will automatically pick up --color-primary from main.css */
     </style>
 </head>
 
@@ -59,16 +49,23 @@
 
             <main class="pb-20 max-w-lg mx-auto md:max-w-4xl">
                 <div class="px-4 md:px-6 mb-6">
-                    <div class="relative">
-                        <input type="text" id="search-input"
-                            class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-white/30"
-                            placeholder="Movies, actors, genres...">
-                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-white/30">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
+                    <div class="flex gap-3">
+                        <div class="relative flex-1">
+                            <input type="text" id="search-input"
+                                class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-white/30"
+                                placeholder="Movies, actors, genres...">
+                            <div class="absolute right-4 top-1/2 -translate-y-1/2 text-white/30">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </div>
                         </div>
+                        <button onclick="window.shufflePlay()"
+                            class="w-14 h-14 glass rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition-all shrink-0">
+                            <i class="fa-solid fa-shuffle"></i>
+                        </button>
+                        <button onclick="toggleSortMenu(true)"
+                            class="w-14 h-14 glass rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition-all shrink-0">
+                            <i class="fa-solid fa-arrow-down-wide-short"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -94,32 +91,116 @@
             </main>
         </div>
 
-        <!-- Player Screen -->
-        <div id="player-screen" class="screen overlay hidden fixed inset-0 z-50 bg-[#0f0f0f] flex flex-col pt-safe">
-            <div class="relative flex-1 flex flex-col justify-center">
+        <div id="player-screen"
+            class="screen overlay hidden fixed inset-0 z-50 bg-[#0f0f0f] flex-col overflow-y-auto no-scrollbar">
+            <!-- Global Back Header -->
+            <div
+                class="player-header absolute top-0 left-0 right-0 z-[100] flex items-center p-6 transition-opacity duration-300">
                 <button
-                    class="absolute top-6 right-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md hover:bg-white/20 transition-all"
+                    class="w-10 h-10 flex items-center justify-center rounded-full glass hover:bg-white/10 transition-all"
                     onclick="closePlayer()">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
+                    <i class="fa-solid fa-arrow-left"></i>
                 </button>
+            </div>
 
-                <video id="video-player" class="w-full h-auto max-h-[80vh] shadow-2xl shadow-primary/10" controls
-                    controlsList="nodownload">
-                    Your browser does not support the video tag.
-                </video>
+            <!-- YouTube-style Layout -->
+            <div class="w-full flex flex-col">
+                <!-- Video Section (Sticky/Top) -->
+                <div id="main-video-mount" class="video-container aspect-video bg-black w-full sticky top-0 z-[90]">
+                    <!-- Brightness Overlay -->
+                    <div id="brightness-overlay" class="absolute inset-0 bg-black pointer-events-none z-[91]"
+                        style="opacity: 0;"></div>
 
-                <div class="player-info p-8 bg-gradient-to-t from-black to-transparent">
-                    <h2 id="player-title" class="text-3xl font-bold mb-2">Movie Title</h2>
-                    <p id="player-desc" class="text-white/60 leading-relaxed max-w-2xl">Description</p>
+                    <!-- Gesture Overlay -->
+                    <div id="gesture-layer" class="hidden absolute inset-0 z-[95] touch-none"></div>
                 </div>
+
+                <!-- Info Section -->
+                <div id="movie-details" class="p-5 flex flex-col gap-3">
+                    <div class="flex items-start justify-between gap-4">
+                        <h1 id="player-movie-title" class="text-xl font-bold line-clamp-2 md:text-2xl"></h1>
+                        <button onclick="window.rotateVideo()"
+                            class="w-10 h-10 flex items-center justify-center rounded-full border border-white/10 glass shrink-0">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-4 text-xs font-medium text-white/50">
+                        <span id="player-movie-views"></span>
+                        <span id="player-movie-date"></span>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button onclick="window.toggleCinemaMode()"
+                            class="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/10 py-3 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">
+                            <i id="cinema-icon" class="fa-solid fa-expand"></i> Phóng To
+                        </button>
+                        <button id="download-btn"
+                            class="w-12 flex items-center justify-center bg-white/5 border border-white/10 py-3 rounded-xl hover:bg-white/10 transition-all">
+                            <i class="fa-solid fa-download"></i>
+                        </button>
+                    </div>
+
+                    <div id="player-movie-description"
+                        class="text-sm text-white/60 leading-relaxed bg-white/5 p-4 rounded-xl"></div>
+                </div>
+
+                <!-- Recommendations Section -->
+                <div class="mt-4 pb-10">
+                    <div class="px-5 mb-4">
+                        <h3 class="text-base font-bold text-white/80">Phim gợi ý</h3>
+                    </div>
+                    <div id="player-recommendations" class="grid grid-cols-2 md:grid-cols-3 gap-3 px-5">
+                        <!-- Movie items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Player Controls Element (One instance shared across slides) -->
+            <div id="shared-player-container" class="hidden">
+                <video id="video-player" playsinline controls crossorigin preload="metadata">
+                    <source src="" type="video/mp4">
+                </video>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <!-- Sorting Menu -->
+    <div id="sort-overlay" class="action-sheet-overlay" onclick="toggleSortMenu(false)"></div>
+    <div id="sort-menu" class="action-sheet">
+        <div class="p-6 border-b border-white/5 flex justify-between items-center">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-white/40">Sắp xếp theo</h3>
+            <button onclick="toggleSortMenu(false)" class="text-white/30 hover:text-white"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="py-2">
+            <div class="sort-item selected" data-sort="newest" onclick="selectSort('newest', 'MỚI CẬP NHẬT')">
+                <i class="fa-solid fa-clock"></i> MỚI CẬP NHẬT
+            </div>
+            <div class="sort-item" data-sort="views_desc" onclick="selectSort('views_desc', 'XEM NHIỀU NHẤT')">
+                <i class="fa-solid fa-eye"></i> XEM NHIỀU NHẤT
+            </div>
+            <div class="sort-item" data-sort="title" onclick="selectSort('title', 'TÊN A-Z')">
+                <i class="fa-solid fa-arrow-down-a-z"></i> TÊN A-Z
+            </div>
+            <div class="sort-item" data-sort="duration_desc" onclick="selectSort('duration_desc', 'THỜI LƯỢNG DÀI')">
+                <i class="fa-solid fa-hourglass-start"></i> THỜI LƯỢNG DÀI
+            </div>
+            <div class="sort-item" data-sort="size_desc" onclick="selectSort('size_desc', 'DUNG LƯỢNG LỚN')">
+                <i class="fa-solid fa-weight-hanging"></i> DUNG LƯỢNG LỚN
+            </div>
+            <div class="sort-item" data-sort="size_asc" onclick="selectSort('size_asc', 'DUNG LƯỢNG NHẸ')">
+                <i class="fa-solid fa-feather"></i> DUNG LƯỢNG NHẸ
+            </div>
+        </div>
+    </div>
+
+    <!-- Cinema Overlay: Plyr is moved here when in landscape fullscreen -->
+    <div id="cinema-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+    <script src="/static/js/app.js" type="module"></script>
 </body>
 
 </html>

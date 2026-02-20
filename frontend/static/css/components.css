@@ -1,0 +1,173 @@
+/* Movie Cards */
+.movie-card:active {
+    transform: scale(0.95);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.feed-item {
+    height: auto;
+    width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+.movie-feed-card {
+    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 2rem;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    transition: transform 0.3s ease;
+}
+
+.movie-feed-card .video-container {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: black;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.feed-poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 5;
+    transition: opacity 0.5s ease-out;
+}
+
+.video-container.playing .feed-poster,
+.video-container.playing .loading-placeholder {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Ensure the player container is above everything else when attached */
+#shared-player-container {
+    z-index: 10;
+    position: relative;
+    display: none;
+    /* Keep it hidden as its content is moved to mountPoint */
+}
+
+.movie-feed-card .info-content {
+    padding: 1.25rem 1.5rem;
+}
+
+.movie-feed-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+#video-player {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 100%;
+    height: 100% !important;
+    object-fit: contain;
+}
+
+/* Action Sheet & Sorting */
+.action-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #161616;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2rem 2rem 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    padding-bottom: calc(env(safe-area-inset-bottom, 1.5rem) + 1rem);
+}
+
+.action-sheet.active {
+    transform: translateY(0);
+}
+
+.action-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.action-sheet-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sort-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 2rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.sort-item:active {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sort-item.selected {
+    color: white;
+    background: rgba(229, 9, 20, 0.1);
+}
+
+.sort-item i {
+    width: 1.25rem;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+/* ── Skeletons & Shimmer ────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.skeleton-shimmer {
+    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+}
+
+.skeleton-card {
+    height: 100%;
+    aspect-ratio: 2/3;
+    border-radius: 1.5rem;
+}
+
+.skeleton-text {
+    height: 1rem;
+    border-radius: 0.5rem;
+    margin-top: 0.75rem;
+}

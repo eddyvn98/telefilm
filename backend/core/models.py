@@ -47,5 +47,7 @@ class Movie(Base):
     duration_minutes: Mapped[Optional[int]] = mapped_column(Integer)
     rating: Mapped[Optional[float]] = mapped_column(Integer)
     views: Mapped[int] = mapped_column(Integer, default=0)
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
+    created_at: Mapped[Optional[str]] = mapped_column(String) # ISO Format
     
     categories: Mapped[List["Category"]] = relationship(secondary=movie_categories, back_populates="movies")

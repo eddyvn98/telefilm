@@ -18,6 +18,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         "total_movies": movie_count.scalar(),
         "server_status": "Online",
         "webapp_url": settings.WEBAPP_URL,
+        "upload_speed_limit": settings.UPLOAD_SPEED_LIMIT_MB,
         "upload_status": UploadService.get_instance().get_status()
     }
 
@@ -66,3 +67,13 @@ async def update_webapp_url(data: Dict[str, str] = Body(...)):
     settings.WEBAPP_URL = url
     print(f"✅ WebApp URL updated to {url}", flush=True)
     return {"status": "ok", "message": f"URL updated to {url}"}
+
+@router.post("/config/upload-limit")
+async def update_upload_limit(data: Dict[str, float] = Body(...)):
+    limit = data.get("limit")
+    if limit is None:
+        raise HTTPException(status_code=400, detail="Limit is required")
+    
+    settings.UPLOAD_SPEED_LIMIT_MB = limit
+    print(f"🚀 Upload speed limit updated to {limit} MB/s", flush=True)
+    return {"status": "ok", "message": f"Upload speed limit updated to {limit} MB/s"}

@@ -36,37 +36,66 @@
             </div>
         </header>
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="glass p-6 rounded-3xl">
-                <p class="text-white/40 text-xs font-semibold uppercase tracking-widest mb-1">Total Library</p>
-                <h2 id="stat-movies" class="text-4xl font-bold">0</h2>
+        <!-- Unified Dashboard Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <!-- Total Library -->
+            <div class="glass p-5 rounded-3xl flex flex-col justify-center min-h-[120px]">
+                <p class="text-white/40 text-[10px] font-semibold uppercase tracking-widest mb-1 text-center">Total
+                    Library</p>
+                <h2 id="stat-movies" class="text-4xl font-bold text-center">0</h2>
             </div>
-            <div class="glass p-6 rounded-3xl">
-                <p class="text-white/40 text-xs font-semibold uppercase tracking-widest mb-1">Upload Status</p>
+
+            <!-- Upload Status -->
+            <div class="glass p-5 rounded-3xl flex flex-col justify-center min-h-[120px]">
+                <p
+                    class="text-white/40 text-[10px] font-semibold uppercase tracking-widest mb-2 text-center text-primary">
+                    Upload Status</p>
                 <div id="upload-container" class="space-y-2">
-                    <div class="flex justify-between items-end">
-                        <h2 id="stat-upload" class="text-lg font-bold text-white/80">Idle</h2>
-                        <span id="stat-speed" class="text-xs text-primary font-mono hidden">0 MB/s</span>
+                    <div class="flex justify-between items-center px-1">
+                        <h2 id="stat-upload" class="text-sm font-bold text-white/80 truncate max-w-[100px]">Idle</h2>
+                        <span id="stat-speed" class="text-[10px] text-primary font-mono hidden">0 MB/s</span>
                     </div>
-                    <div id="progress-bar-container"
-                        class="w-full bg-white/5 h-1.5 rounded-full overflow-hidden hidden">
+                    <div id="progress-bar-container" class="w-full bg-white/5 h-1 rounded-full overflow-hidden hidden">
                         <div id="progress-bar-fill" class="bg-primary h-full w-0 transition-all duration-300"></div>
                     </div>
                 </div>
             </div>
-            <div class="glass p-6 rounded-3xl md:col-span-1">
-                <p class="text-white/40 text-xs font-semibold uppercase tracking-widest mb-1">Quick Action</p>
+
+            <!-- Speed Control -->
+            <div class="glass p-5 rounded-3xl flex flex-col justify-center min-h-[120px]">
+                <p
+                    class="text-white/40 text-[10px] font-semibold uppercase tracking-widest mb-2 text-center text-primary">
+                    Upload Limit</p>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                        <input id="limit-slider" type="range" min="0" max="10" step="0.5" value="0"
+                            class="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+                            <input id="limit-input" type="number" step="0.1" min="0" value="0"
+                                class="w-10 bg-transparent text-xs text-center text-white focus:outline-none">
+                            <span class="text-[8px] text-white/20">MB/s</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center px-1">
+                        <span id="limit-value-display" class="text-[10px] text-primary font-bold">Unlimited</span>
+                        <button onclick="saveSpeedLimit()"
+                            class="text-[9px] hover:text-primary transition-colors font-bold uppercase tracking-wider bg-white/5 px-2 py-1 rounded-md border border-white/10">Apply</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action -->
+            <div class="glass p-5 rounded-3xl flex items-center min-h-[120px]">
                 <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
-                    class="w-full bg-primary hover:bg-primary/80 text-white font-bold py-3 rounded-2xl transition-all">
+                    class="w-full h-full bg-primary hover:bg-primary/80 text-white text-xs font-bold py-4 rounded-2xl transition-all shadow-lg shadow-primary/20">
                     + Add New Movies
                 </button>
             </div>
         </div>
 
         <!-- Catalog Section -->
-        <div class="glass rounded-3xl overflow-hidden">
-            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+        <div class="glass rounded-3xl overflow-hidden shadow-2xl">
+            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/2">
                 <h3 class="font-bold">Movie Catalog</h3>
                 <div class="text-xs text-white/40" id="sync-time">Last synced: Just now</div>
             </div>
@@ -99,7 +128,7 @@
     <!-- Upload Modal -->
     <div id="upload-modal"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
-        <div class="glass w-full max-w-md p-8 rounded-[40px] relative">
+        <div class="glass w-full max-w-md p-8 rounded-[40px] relative border-white/10 shadow-2xl">
             <button onclick="document.getElementById('upload-modal').classList.add('hidden')"
                 class="absolute top-6 right-6 text-white/40 hover:text-white transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
