@@ -9,16 +9,46 @@
     flex-direction: column;
 }
 
+/* ── Cinema Fullscreen (manual toggle button) ──────────────────────────── */
 .plyr.cinema-fullscreen {
     position: fixed !important;
     inset: 0 !important;
     z-index: 9999 !important;
     width: 100% !important;
     height: 100% !important;
-    max-height: 100vh !important;
-    opacity: 1 !important;
-    visibility: visible !important;
+    max-height: 100dvh !important;
     background: black !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* ── Auto Fullscreen on Landscape (CSS-native, zero JS lag) ─────────────── */
+/* Browser applies this in 1 layout pass during rotation — no flash on iOS   */
+@media (orientation: landscape) {
+    #player-screen:not(.hidden) .plyr {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 9999 !important;
+        width: 100dvw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        background: black !important;
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        will-change: transform;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    /* Show cinema close button automatically in landscape */
+    #player-screen:not(.hidden)~#cinema-close-btn,
+    body.in-player-landscape #cinema-close-btn {
+        opacity: 1;
+        visibility: visible;
+    }
 }
 
 /* UI Clean-up for Cinema Mode & Global Transparency */
@@ -67,14 +97,14 @@
 
 .cinema-close-btn {
     position: fixed;
-    top: 20px;
+    top: env(safe-area-inset-top, 20px);
+    top: max(env(safe-area-inset-top), 20px);
     left: 20px;
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    /* Removed backdrop-filter: expensive on iOS during animation */
+    background: rgba(0, 0, 0, 0.75);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
     display: flex;
@@ -84,7 +114,10 @@
     z-index: 10001;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Use only opacity/visibility for transition — GPU-friendly */
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .cinema-close-btn.visible {

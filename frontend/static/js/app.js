@@ -2,7 +2,7 @@ import { tg, screens, elements, state, updateState } from './state.js';
 import { login, fetchMovies } from './api.js';
 import { renderUser, renderHero, applySortAndRender, showAccessDenied, renderSkeletons } from './ui.js';
 import { exitCinemaMode, showCinemaControls, handleOrientationChange } from './player-cinema.js';
-import { renderContinueWatching, renderRecommendationSection } from './history-ui.js';
+import { renderContinueWatching, renderWatchHistorySection, renderRecommendationSection } from './history-ui.js';
 import { getWatchHistory, getRecommendations } from './api.js';
 import './player-page.js'; // Registers window.playMovie
 
@@ -64,6 +64,7 @@ async function loadHistorySections() {
             getRecommendations(),
         ]);
         renderContinueWatching(history);
+        renderWatchHistorySection(history);
         renderRecommendationSection(recommendations);
     } catch (e) {
         // Non-critical – silently skip if user has no history yet
@@ -94,6 +95,7 @@ window.closePlayer = () => {
     exitCinemaMode();
     screens.player.classList.add('hidden');
     screens.player.classList.remove('flex');
+    loadHistorySections(); // Refresh history & recommendations when returning home
 };
 
 // ── Gestures & Search ─────────────────────────────────────────────────────

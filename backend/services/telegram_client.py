@@ -57,7 +57,7 @@ class TelegramClientService:
         """
         Stream a file from a message in a channel.
         offset: Byte offset to start stream from.
-        limit: Number of bytes to read (chunk size).
+        limit: Max number of bytes to yield total.
         """
         try:
             print(f"DEBUG: TG Client getting message {message_id} from {channel_id}", flush=True)
@@ -67,14 +67,26 @@ class TelegramClientService:
                 raise ValueError("Message not found or has no file")
             
             print(f"DEBUG: Starting download iteration for {message.file.name} ({message.file.size} bytes)", flush=True)
-            # Telethon's iter_download handles offset/limit
-            # chunk_size is implementation detail, typically 128KB - 1MB
+            bytes_remaining = limit
             count = 0
-            async for chunk in self.client.iter_download(message.media, offset=offset, limit=limit, chunk_size=1024*1024):
+            async for chunk in self.client.iter_download(message.media, offset=offset, chunk_size=512*1024):
                 if count == 0:
                     print(f"DEBUG: Yielding FIRST chunk of size {len(chunk)}", flush=True)
+
+                if bytes_remaining is not None:
+                    if bytes_remaining <= 0:
+                        break
+                    # Truncate chunk if it would exceed the requested limit
+                    if len(chunk) > bytes_remaining:
+                        chunk = chunk[:bytes_remaining]
+                    bytes_remaining -= len(chunk)
+
                 yield chunk
                 count += 1
+
+                if bytes_remaining is not None and bytes_remaining <= 0:
+                    break
+
             print(f"DEBUG: Stream finished, yielded {count} chunks", flush=True)
                 
         except Exception as e:

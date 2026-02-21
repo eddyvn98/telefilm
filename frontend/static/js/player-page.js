@@ -1,6 +1,6 @@
 import { state, elements, tg, updateState, screens, getProgress } from './state.js';
 import { initPlyr, setupHLS } from './player.js';
-import { exitCinemaMode, handleOrientationChange } from './player-cinema.js';
+import { exitCinemaMode } from './player-cinema.js';
 import { renderMovieList, showResumeBanner } from './ui.js';
 import { initPlayerGestures } from './player-gestures.js';
 import { startTracking, stopTracking, flushNow } from './history.js';
@@ -116,10 +116,6 @@ export function loadMovie(id) {
 
     // Scroll to top of player screen
     screens.player.scrollTo(0, 0);
-
-    // Listen for rotation
-    window.addEventListener('resize', handleOrientationChange);
-    window.addEventListener('orientationchange', handleOrientationChange);
 
     // MiniPlayer Intersection Observer
     if (state.miniPlayerObserver) state.miniPlayerObserver.disconnect();

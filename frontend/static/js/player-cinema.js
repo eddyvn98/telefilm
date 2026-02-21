@@ -1,91 +1,38 @@
 import { state, updateState, tg, screens } from './state.js';
 
-// ── Landscape Detection → Fullscreen Cinema ───────────────────────────────
+// ── Cinema Mode (Manual Toggle Only) ─────────────────────────────────────
+// NOTE: Automatic fullscreen on landscape rotation is handled purely by CSS
+// @media (orientation: landscape) in cinema.css — no JS needed, no flash.
 
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-export const handleOrientationChange = debounce(() => {
-    if (screens.player.classList.contains('hidden')) return;
-
-    // Use a slighly larger threshold or check specific orientation APIs if available
-    const isLandscape = window.innerWidth > window.innerHeight;
-
-    if (isLandscape && !state.isCinemaMode) {
-        enterCinemaFullscreen();
-    } else if (!isLandscape && state.isCinemaMode) {
-        exitCinemaMode();
-    }
-}, 200); // 200ms debounce to wait for rotation animation
-
-// ── Enter Cinema Fullscreen ───────────────────────────────────────────────
-// Move Plyr wrapper into #cinema-overlay (body-level div), show it fullscreen.
-// This avoids CSS clipping from nested feed structures.
-// CSS-Only Approach: Add .cinema-fullscreen class to fixed position the player.
-// No DOM moving = No reload/stutter.
+// ── Enter Cinema Fullscreen (manual button) ───────────────────────────────
 
 export function enterCinemaFullscreen() {
-    if (!state.player) return;
-    const movie = state.movies[state.currentMovieIndex];
-    if (!movie) return;
-
-    // Prevent double entry
-    if (state.isCinemaMode) return;
+    if (!state.player || state.isCinemaMode) return;
 
     updateState({ isCinemaMode: true });
     screens.player.classList.add('cinema-mode-active');
-    if (tg.setHeaderColor) tg.setHeaderColor('#000000');
 
     const playerWrapper = state.player.elements.container;
     playerWrapper.classList.add('cinema-fullscreen');
 
     if (!state.player.playing) state.player.play().catch(() => { });
 
-    // Create close button
     createCinemaCloseBtn();
 
     if (tg.requestFullscreen) tg.requestFullscreen();
-
-    // Trigger resize to fix layout
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+    if (tg.setHeaderColor) tg.setHeaderColor('#000000');
 
     const icon = document.getElementById('cinema-icon');
     if (icon) icon.className = 'fa-solid fa-compress';
 }
 
-function createCinemaCloseBtn() {
-    removeCinemaCloseBtn();
-    const closeBtn = document.createElement('button');
-    closeBtn.id = 'cinema-close-btn';
-    closeBtn.className = 'cinema-close-btn';
-    closeBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
-    closeBtn.setAttribute('aria-label', 'Thoát fullscreen');
-    closeBtn.addEventListener('click', () => exitCinemaMode());
-    document.body.appendChild(closeBtn);
-    showCinemaControls();
-}
-
-function removeCinemaCloseBtn() {
-    document.getElementById('cinema-close-btn')?.remove();
-}
-
-// ── Exit Cinema Mode ──────────────────────────────────────────────────────
+// ── Exit Cinema Mode (manual button or portrait rotation) ─────────────────
 
 export function exitCinemaMode() {
     if (!state.isCinemaMode) return;
 
     updateState({ isCinemaMode: false });
     screens.player.classList.remove('cinema-mode-active');
-    if (tg.setHeaderColor) tg.setHeaderColor('bg_color');
 
     removeCinemaCloseBtn();
     clearTimeout(state.controlsTimeout);
@@ -93,17 +40,68 @@ export function exitCinemaMode() {
     if (state.player) {
         const playerWrapper = state.player.elements.container;
         playerWrapper.classList.remove('cinema-fullscreen');
-
-        // Re-mute for portrait scroll preview
         state.player.muted = true;
     }
 
-    // Restore button icon
     const icon = document.getElementById('cinema-icon');
     if (icon) icon.className = 'fa-solid fa-expand';
 
     if (tg.exitFullscreen) tg.exitFullscreen();
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+    if (tg.setHeaderColor) tg.setHeaderColor('bg_color');
+}
+
+// ── Orientation watcher for close button + Telegram expand API ────────────
+// Uses a matchMedia listener — fires in sync with CSS @media queries,
+// avoiding the double-reflow that debounced resize/orientationchange caused.
+
+const landscapeQuery = window.matchMedia('(orientation: landscape)');
+
+function onOrientationChange(e) {
+    if (screens.player.classList.contains('hidden')) return;
+
+    if (e.matches) {
+        // Landscape: show close button, expand Telegram
+        document.body.classList.add('in-player-landscape');
+        createCinemaCloseBtn();
+        if (tg.requestFullscreen) tg.requestFullscreen();
+        if (tg.setHeaderColor) tg.setHeaderColor('#000000');
+        if (state.player && !state.player.playing) state.player.play().catch(() => { });
+    } else {
+        // Portrait: remove close button, restore Telegram header
+        document.body.classList.remove('in-player-landscape');
+        // Only remove the close btn if not in manual cinema mode
+        if (!state.isCinemaMode) {
+            removeCinemaCloseBtn();
+            if (tg.exitFullscreen) tg.exitFullscreen();
+            if (tg.setHeaderColor) tg.setHeaderColor('bg_color');
+        }
+    }
+}
+
+landscapeQuery.addEventListener('change', onOrientationChange);
+
+// ── Close Button ──────────────────────────────────────────────────────────
+
+function createCinemaCloseBtn() {
+    if (document.getElementById('cinema-close-btn')) return; // Already exists
+    const closeBtn = document.createElement('button');
+    closeBtn.id = 'cinema-close-btn';
+    closeBtn.className = 'cinema-close-btn visible';
+    closeBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+    closeBtn.setAttribute('aria-label', 'Thoát fullscreen');
+    closeBtn.addEventListener('click', () => {
+        if (state.isCinemaMode) {
+            exitCinemaMode();
+        } else {
+            // Landscape auto-mode: just trigger exit via orientation (user rotates back)
+            // or provide a simple visual feedback — do nothing (user rotates back)
+        }
+    });
+    document.body.appendChild(closeBtn);
+}
+
+function removeCinemaCloseBtn() {
+    document.getElementById('cinema-close-btn')?.remove();
 }
 
 // ── Cinema Controls Auto-hide ─────────────────────────────────────────────
@@ -116,56 +114,26 @@ export function showCinemaControls() {
     clearTimeout(state.controlsTimeout);
 
     const timeout = setTimeout(() => {
+        // Only hide if NOT in manual isCinemaMode (landscape auto shows it via CSS)
+        if (!state.isCinemaMode) return;
         closeBtn.classList.remove('visible');
     }, 3000);
     updateState({ controlsTimeout: timeout });
 }
 
-// ── Cinema Mode Toggle (manual button) ───────────────────────────────────
+// ── Cinema Mode Toggle (manual button) ────────────────────────────────────
 
-// ── Cinema Mode Toggle (manual button or tap) ────────────────────────────
-
-window.toggleCinemaMode = function (targetIdx) {
+window.toggleCinemaMode = function () {
     if (state.isCinemaMode) {
         exitCinemaMode();
     } else {
-        // If a specific index is requested and it's different from current, switch to it first
-        // Note: attachPlayerToSlide needs to be imported if we want to switch, 
-        // but circular dependency might be an issue. 
-        // For now, let's assume UI handles index switching or ignore targetIdx 
-        // if it's strictly for cinema toggle.
-        // Actually, let's import it dynamically to avoid cycle if possible, or move this back to app/feed.
-        // But toggleCinemaMode is called from HTML.
-
-        // Strategy: We'll dispatch a custom event if index change is needed, or just warn.
-        // Or better: The HTML calling this usually assumes we are on that slide.
-
-        /* 
-           Refactor Note: 
-           If targetIdx is passed and != current, we strictly need to switch.
-           Since attachPlayerToSlide is in player-feed.js, and that imports exitCinemaMode from here,
-           we have a potential circular dependency if we import attachPlayerToSlide here.
-           
-           Solution: We can assume toggleCinemaMode is called when the user is already on the slide 
-           OR we can move this window function to `app.js` or `player-feed.js` where full context is available.
-           
-           However, for now, let's keep it here but remove the slide switching logic if it causes issues, 
-           or use a global helper. 
-           
-           Actually, let's move `toggleCinemaMode` to `player-feed.js` since it might involve feed navigation.
-           Wait, `rotateVideo` is purely visual/cinema.
-           
-           Let's keep `enter` and `exit` here. `toggle` can be here if we don't switch slides.
-           The original code had switching logic.
-           
-           Let's use a delayed import or global function for the switch if needed.
-           But `attachPlayerToSlide` is exported from `player-feed.js`.
-           
-           Let's move `toggleCinemaMode` to `player-feed.js` because it interacts with the feed (changing slides).
-        */
         enterCinemaFullscreen();
     }
 };
+
+// ── handleOrientationChange: exported as no-op for backwards compatibility ─
+// (player-page.js imports this — keep export to avoid import errors)
+export const handleOrientationChange = () => { };
 
 // ── Manual Rotate Video ───────────────────────────────────────────────────
 

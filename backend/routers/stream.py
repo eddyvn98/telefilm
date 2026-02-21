@@ -57,10 +57,12 @@ async def stream_video(
          raise HTTPException(status_code=404, detail="File not found on Telegram")
 
     # 2. Parse Range Header
+    status_code = 200
     start = 0
     end = file_size - 1
     
     if range:
+        status_code = 206
         try:
             # Range: bytes=0-1023
             range_key, range_val = range.split("=")
@@ -89,15 +91,17 @@ async def stream_video(
             yield chunk
 
     headers = {
-        "Content-Range": f"bytes {start}-{end}/{file_size}",
         "Accept-Ranges": "bytes",
-        "Content-Length": str(content_length),
-        "Content-Type": "video/mp4", # Assuming MP4 for simplicity, ideally detect mime
+        "Content-Type": "video/mp4",
     }
+
+    if status_code == 206:
+        headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+        headers["Content-Length"] = str(content_length)
     
     return StreamingResponse(
         iterfile(),
-        status_code=206,
+        status_code=status_code,
         headers=headers,
         media_type="video/mp4"
     )
