@@ -100,6 +100,18 @@ class TelegramClientService:
             return message.file.size
         return 0
 
+    async def delete_message(self, channel_id: int, message_id: int) -> bool:
+        """
+        Delete a message from a channel.
+        """
+        try:
+            await self.client.delete_messages(channel_id, [message_id])
+            logger.info(f"Deleted message {message_id} from channel {channel_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting message {message_id}: {e}")
+            return False
+
     async def stop(self):
         if self.started:
             await self.client.disconnect()

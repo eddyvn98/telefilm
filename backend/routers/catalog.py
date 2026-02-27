@@ -18,6 +18,8 @@ class MovieSchema(BaseModel):
     release_year: Optional[int]
     rating: Optional[float]
     views: int
+    size_bytes: Optional[int] = None
+    created_at: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -39,7 +41,7 @@ async def list_movies(
     if category_id:
          query = query.join(Movie.categories).where(Category.id == category_id)
          
-    query = query.offset(skip).limit(limit)
+    query = query.order_by(Movie.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(query)
     movies = result.scalars().all()
@@ -56,3 +58,18 @@ async def get_movie(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
+
+@router.post("/movies/{movie_id}/view")
+async def increment_view(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(authorized_user)
+):
+    result = await db.execute(select(Movie).where(Movie.id == movie_id))
+    movie = result.scalar_one_or_none()
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    
+    movie.views += 1
+    await db.commit()
+    return {"ok": True, "views": movie.views}

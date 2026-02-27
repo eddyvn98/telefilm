@@ -85,10 +85,22 @@
             </div>
 
             <!-- Action -->
-            <div class="glass p-5 rounded-3xl flex items-center min-h-[120px]">
+            <div class="glass p-5 rounded-3xl flex flex-col gap-3 min-h-[120px]">
                 <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
-                    class="w-full h-full bg-primary hover:bg-primary/80 text-white text-xs font-bold py-4 rounded-2xl transition-all shadow-lg shadow-primary/20">
-                    + Add New Movies
+                    class="w-full flex-1 bg-primary hover:bg-primary/80 text-white text-xs font-bold rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    New Movies
+                </button>
+                <button onclick="cleanupDuplicates(event)"
+                    class="w-full flex-1 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                    Clean Duplicates
                 </button>
             </div>
         </div>
@@ -149,7 +161,7 @@
         </div>
     </div>
 
-    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/admin.js?v=1.1"></script>
 </body>
 
 </html>

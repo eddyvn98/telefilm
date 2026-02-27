@@ -51,7 +51,13 @@ function _historyCard(item) {
             : ''}
             </div>
             <p class="text-xs font-medium mt-1.5 text-white/80 truncate">${item.title}</p>
-            <p class="text-[10px] text-white/30 mt-0.5">${timeAgo}</p>
+            <div class="flex items-center justify-between mt-0.5">
+                <p class="text-[10px] text-white/30 truncate">${timeAgo}</p>
+                <div class="flex items-center gap-1 text-[10px] text-white/40">
+                    <i class="fa-solid fa-eye text-[8px]"></i>
+                    <span>${(item.global_views || 0).toLocaleString()}</span>
+                </div>
+            </div>
         </div>`;
 }
 
@@ -70,6 +76,10 @@ function _recommendCard(item) {
                 ${item.progress_percent > 0 ? _progressBar(item.progress_percent) : ''}
             </div>
             <p class="text-xs font-medium mt-1.5 text-white/70 truncate">${item.title}</p>
+            <div class="flex items-center gap-1 text-[9px] text-white/30 mt-0.5">
+                <i class="fa-solid fa-eye text-[8px]"></i>
+                <span>${(item.global_views || 0).toLocaleString()} lượt xem</span>
+            </div>
         </div>`;
 }
 

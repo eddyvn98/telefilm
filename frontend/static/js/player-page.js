@@ -4,6 +4,7 @@ import { exitCinemaMode } from './player-cinema.js';
 import { renderMovieList, showResumeBanner } from './ui.js';
 import { initPlayerGestures } from './player-gestures.js';
 import { startTracking, stopTracking, flushNow } from './history.js';
+import { incrementMovieView } from './api.js';
 
 function initSoftwareVolume() {
     if (!state.player) return;
@@ -110,9 +111,20 @@ export function loadMovie(id) {
 
         state.player.play().catch(() => { });
 
-        // Start history tracking for new source
-        startTracking(id, () => state.player);
     }
+
+    // Start history tracking
+    startTracking(id, () => state.player);
+
+    // Increment global view count
+    incrementMovieView(id).then(res => {
+        if (res && res.ok) {
+            // Update local state and current UI
+            const movieInState = state.movies.find(m => m.id === id);
+            if (movieInState) movieInState.views = res.views;
+            elements.playerViews.innerHTML = `<i class="fa-solid fa-eye mr-1"></i>${res.views.toLocaleString()} lượt xem`;
+        }
+    });
 
     // Scroll to top of player screen
     screens.player.scrollTo(0, 0);

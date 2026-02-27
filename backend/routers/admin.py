@@ -36,6 +36,13 @@ async def trigger_scan(path: str = Body(..., embed=True)):
     asyncio.create_task(upload_service.scan_and_upload(path))
     return {"status": "started", "message": f"Scanning started for {path}"}
 
+@router.post("/cleanup/duplicates")
+async def cleanup_duplicates():
+    from ..services.movie_cleaner_service import MovieCleanerService
+    cleaner = MovieCleanerService()
+    summary = await cleaner.clean_duplicates()
+    return {"status": "ok", "data": summary}
+
 @router.get("/movies")
 async def list_movies_admin(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Movie).order_by(Movie.id.desc()))
@@ -48,7 +55,10 @@ async def delete_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
     try:
         # 1. Delete links in the association table first
         await db.execute(movie_categories.delete().where(movie_categories.c.movie_id == movie_id))
-        # 2. Delete the movie
+        # 2. Delete watch history
+        from ..core.models import WatchHistory
+        await db.execute(delete(WatchHistory).where(WatchHistory.movie_id == movie_id))
+        # 3. Delete the movie
         await db.execute(delete(Movie).where(Movie.id == movie_id))
         await db.commit()
     except Exception as e:

@@ -31,6 +31,7 @@ class HistoryItemSchema(BaseModel):
     watch_count: int
     last_watched_at: str
     progress_percent: float
+    global_views: int
 
     class Config:
         from_attributes = True
@@ -113,8 +114,9 @@ async def list_history(
             watch_count=row.watch_count,
             last_watched_at=row.last_watched_at,
             progress_percent=_calc_percent(row.progress_seconds, row.duration_seconds),
+            global_views=row.movie.views
         )
-        for row in rows
+        for row in rows if row.movie
     ]
 
 
@@ -158,6 +160,8 @@ async def get_recommendations(
 
     # Add unfinished first
     for row in unfinished:
+        if not row.movie:
+            continue
         recommendations.append({
             "movie_id": row.movie_id,
             "title": row.movie.title,
@@ -166,6 +170,7 @@ async def get_recommendations(
             "duration_seconds": row.duration_seconds,
             "progress_percent": _calc_percent(row.progress_seconds, row.duration_seconds),
             "reason": "unfinished",
+            "global_views": row.movie.views
         })
 
     # Fill with unwatched
@@ -180,6 +185,7 @@ async def get_recommendations(
             "duration_seconds": 0,
             "progress_percent": 0,
             "reason": "unwatched",
+            "global_views": movie.views
         })
 
     return recommendations[:limit]

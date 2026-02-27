@@ -9,6 +9,7 @@ from sqlalchemy import select
 from ..core.config import get_settings
 from ..core.models import Movie
 from ..core.database import AsyncSessionLocal
+from ..core.utils import normalize_title
 from .telegram_client import TelegramClientService
 
 logger = logging.getLogger(__name__)
@@ -84,9 +85,32 @@ class UploadService:
                     self.progress["status"] = "Checking database..."
                     
                     async with AsyncSessionLocal() as db:
+                        # 1. Check exact filename
                         existing = await db.execute(select(Movie).where(Movie.title == file))
                         if existing.scalar_one_or_none():
-                            logger.info(f"File already in database: {file}")
+                            logger.info(f"File already in database (Exact match): {file}")
+                            continue
+                            
+                        # 2. Smart check: Normalized title + Approximate size (within 1KB)
+                        norm_title = normalize_title(file)
+                        current_size = os.path.getsize(file_path)
+                        
+                        # Find potential duplicates by logic similar to the cleaner
+                        # Note: We query all movies and filter in Python for simplicity in this specific context, 
+                        # or we could do a more complex SQL like query if the DB grows extremely large.
+                        all_movies_res = await db.execute(select(Movie))
+                        all_movies = all_movies_res.scalars().all()
+                        
+                        found_duplicate = False
+                        for m in all_movies:
+                            if normalize_title(m.title) == norm_title:
+                                # If normalized title matches and size is nearly identical, skip
+                                if abs((m.size_bytes or 0) - current_size) < 1024:
+                                    logger.info(f"Smart skip: {file} matches existing movie '{m.title}' (ID: {m.id})")
+                                    found_duplicate = True
+                                    break
+                                    
+                        if found_duplicate:
                             continue
 
                     self.progress["status"] = f"Uploading {file} to Telegram..."

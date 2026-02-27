@@ -71,8 +71,8 @@ export function applySortAndRender() {
             case 'title': return a.title.localeCompare(b.title);
             case 'views_desc': return (b.views || 0) - (a.views || 0);
             case 'duration_desc': return (b.duration || 0) - (a.duration || 0);
-            case 'size_desc': return (b.file_size || 0) - (a.file_size || 0);
-            case 'size_asc': return (a.file_size || 0) - (b.file_size || 0);
+            case 'size_desc': return (b.size_bytes || 0) - (a.size_bytes || 0);
+            case 'size_asc': return (a.size_bytes || 0) - (b.size_bytes || 0);
             default: return new Date(b.created_at || 0) - new Date(a.created_at || 0);
         }
     });

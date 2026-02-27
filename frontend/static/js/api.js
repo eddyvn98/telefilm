@@ -61,3 +61,16 @@ export async function getRecommendations() {
     if (response.ok) return await response.json();
     return [];
 }
+
+export async function incrementMovieView(movieId) {
+    try {
+        const response = await fetch(`/api/catalog/movies/${movieId}/view`, {
+            method: 'POST',
+            headers: { 'X-Telegram-Init-Data': tg.initData }
+        });
+        if (response.ok) return await response.json();
+    } catch (e) {
+        // Non-critical
+    }
+    return null;
+}

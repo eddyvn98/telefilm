@@ -23,7 +23,8 @@ async function init() {
         updateState({ movies: movies.length > 0 ? movies : getMockMovies() });
 
         renderHero(state.movies[0]);
-        applySortAndRender();
+        // applySortAndRender will handle the first render with default label
+        window.selectSort(state.currentSort || 'newest', 'MỚI CẬP NHẬT');
 
         initGestures();
         initFullscreenListeners();
@@ -81,8 +82,12 @@ window.toggleSortMenu = (show) => {
     else { menu.classList.remove('active'); overlay.classList.remove('active'); }
 };
 
-window.selectSort = (val) => {
+window.selectSort = (val, label) => {
     updateState({ currentSort: val });
+    const labelEl = document.getElementById('current-sort-label');
+    if (labelEl && label) {
+        labelEl.innerText = label;
+    }
     document.querySelectorAll('.sort-item').forEach(item => {
         item.classList.toggle('selected', item.getAttribute('data-sort') === val);
     });
@@ -115,16 +120,53 @@ function initGestures() {
 }
 
 elements.searchInput.addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
+    const q = e.target.value.toLowerCase().trim();
+    const sections = [
+        'featured-hero',
+        'continue-watching-section',
+        'watch-history-section',
+        'recommendations-section',
+        'latest-section'
+    ];
+
+    const normalize = (str) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
     if (q.length < 2) {
         elements.searchResults.classList.add('hidden');
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                // Keep history sections hidden if they were empty
+                if (id === 'latest-section' || id === 'featured-hero') {
+                    el.classList.remove('hidden');
+                } else {
+                    // Re-run original visibility logic via loadHistorySections if needed
+                    // or just show them if they have content. For now, just show them.
+                    el.classList.remove('hidden');
+                }
+            }
+        });
+        loadHistorySections(); // Ensure history visibility is correct
         return;
     }
-    const filtered = state.movies.filter(m => m.title.toLowerCase().includes(q));
-    if (filtered.length > 0) {
-        elements.searchResults.classList.remove('hidden');
-        import('./ui.js').then(m => m.renderMovieList(filtered, elements.searchGrid));
-    }
+
+    // Hide everything else while searching
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+
+    const normalizedQ = normalize(q);
+    const filtered = state.movies.filter(m => {
+        const titleMatch = normalize(m.title).includes(normalizedQ);
+        const originalTitleMatch = m.original_title ? normalize(m.original_title).includes(normalizedQ) : false;
+        return titleMatch || originalTitleMatch;
+    });
+
+    elements.searchResults.classList.remove('hidden');
+    import('./ui.js').then(m => m.renderMovieList(filtered, elements.searchGrid));
 });
 
 init();
