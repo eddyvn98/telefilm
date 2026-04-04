@@ -2,6 +2,7 @@ import logging
 from telethon import TelegramClient
 from ..core.config import get_settings
 import asyncio
+import time
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -24,16 +25,20 @@ class TelegramClientService:
             logger.info("Using BOT session for Telegram")
             self.session_name = 'bot_session'
             self.is_user = False
+        self.client = self._build_client(self.session_name)
+        self.started = False
+        self._message_cache = {}
+        self._message_cache_ttl_seconds = 300
 
-        self.client = TelegramClient(
-            self.session_name, 
-            settings.API_ID, 
+    def _build_client(self, session_name: str) -> TelegramClient:
+        return TelegramClient(
+            session_name,
+            settings.API_ID,
             settings.API_HASH,
             device_model='PC 64bit',
             system_version='Windows 10',
             app_version='4.10.2'
         )
-        self.started = False
 
     @classmethod
     def get_instance(cls):
@@ -44,14 +49,52 @@ class TelegramClientService:
     async def start(self):
         if not self.started:
             if self.is_user:
-                # User sessions are started without token if session file exists and is authorized
-                await self.client.start()
+                # Non-interactive check for existing authorized user session.
+                await self.client.connect()
+                if not await self.client.is_user_authorized():
+                    raise ConnectionError(
+                        "user_session is not authorized. Please login again with D:\\telefilm\\login.py"
+                    )
             else:
                 await self.client.start(bot_token=settings.BOT_TOKEN)
-            
+
             self.started = True
             me = await self.client.get_me()
             logger.info(f"Telegram Client Started: {getattr(me, 'username', 'Unknown')}")
+            return
+
+        if not self.client.is_connected():
+            logger.warning("Telegram client disconnected; reconnecting...")
+            await self.client.connect()
+            if not self.client.is_connected():
+                raise ConnectionError("Telegram client reconnect failed")
+
+            # Never trigger interactive login prompts at runtime.
+            authorized = await self.client.is_user_authorized()
+            if not authorized:
+                if self.is_user:
+                    raise ConnectionError("User session is no longer authorized. Please re-login in telefilm.")
+                await self.client.start(bot_token=settings.BOT_TOKEN)
+
+    async def get_message(self, channel_id: int, message_id: int):
+        await self.start()
+        key = f"{channel_id}:{message_id}"
+        now = time.time()
+        cached = self._message_cache.get(key)
+        if cached and cached["expire_at"] > now:
+            return cached["message"]
+
+        try:
+            message = await self.client.get_messages(channel_id, ids=message_id)
+        except ConnectionError:
+            logger.warning("get_messages failed due to disconnected client; retrying once")
+            await self.client.connect()
+            message = await self.client.get_messages(channel_id, ids=message_id)
+        self._message_cache[key] = {
+            "message": message,
+            "expire_at": now + self._message_cache_ttl_seconds,
+        }
+        return message
 
     async def get_file_stream(self, channel_id: int, message_id: int, offset: int = 0, limit: int = None):
         """
@@ -60,8 +103,9 @@ class TelegramClientService:
         limit: Max number of bytes to yield total.
         """
         try:
+            await self.start()
             print(f"DEBUG: TG Client getting message {message_id} from {channel_id}", flush=True)
-            message = await self.client.get_messages(channel_id, ids=message_id)
+            message = await self.get_message(channel_id, message_id)
             if not message or not message.file:
                 print(f"ERROR: Message {message_id} not found or no file", flush=True)
                 raise ValueError("Message not found or has no file")
@@ -89,13 +133,34 @@ class TelegramClientService:
 
             print(f"DEBUG: Stream finished, yielded {count} chunks", flush=True)
                 
+        except ConnectionError:
+            logger.warning("iter_download disconnected; reconnect and retry once")
+            await self.client.connect()
+            message = await self.get_message(channel_id, message_id)
+            bytes_remaining = limit
+            count = 0
+            async for chunk in self.client.iter_download(message.media, offset=offset, chunk_size=512*1024):
+                if count == 0:
+                    print(f"DEBUG: Yielding FIRST chunk of size {len(chunk)}", flush=True)
+                if bytes_remaining is not None:
+                    if bytes_remaining <= 0:
+                        break
+                    if len(chunk) > bytes_remaining:
+                        chunk = chunk[:bytes_remaining]
+                    bytes_remaining -= len(chunk)
+                yield chunk
+                count += 1
+                if bytes_remaining is not None and bytes_remaining <= 0:
+                    break
+            print(f"DEBUG: Stream finished after retry, yielded {count} chunks", flush=True)
+
         except Exception as e:
             print(f"ERROR in get_file_stream: {e}", flush=True)
             logger.error(f"Error streaming file: {e}")
             raise
 
     async def get_file_size(self, channel_id: int, message_id: int) -> int:
-        message = await self.client.get_messages(channel_id, ids=message_id)
+        message = await self.get_message(channel_id, message_id)
         if message and message.file:
             return message.file.size
         return 0

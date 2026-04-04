@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Header, HTTPException, Request, Response, Query
 from fastapi.responses import StreamingResponse
 from ..services.telegram_client import TelegramClientService
-from ..core.database import get_db, AsyncSession
+from ..core.database import AsyncSessionLocal
 from ..core.models import Movie
 from ..core.security import validate_telegram_data, get_settings
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
 
 router = APIRouter()
 
@@ -16,7 +14,6 @@ async def stream_video(
     request: Request,
     range: str = Header(None),
     init_data: str = Query(..., alias="init_data"),
-    db: AsyncSession = Depends(get_db)
 ):
     """
     Stream video content. Supports Range requests for seeking.
@@ -32,8 +29,11 @@ async def stream_video(
             raise HTTPException(status_code=403, detail="Unauthorized")
 
     # 1. Get Movie Metadata
-    result = await db.execute(select(Movie).where(Movie.id == movie_id))
-    movie = result.scalar_one_or_none()
+    # Avoid holding a DB session during long-lived StreamingResponse.
+    # Query metadata first, then close the DB session before streaming.
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Movie).where(Movie.id == movie_id))
+        movie = result.scalar_one_or_none()
     
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
@@ -52,9 +52,12 @@ async def stream_video(
     client_service = TelegramClientService.get_instance()
     await client_service.start() # Ensure started
     
-    file_size = await client_service.get_file_size(channel_id, message_id)
-    if file_size == 0:
-         raise HTTPException(status_code=404, detail="File not found on Telegram")
+    message = await client_service.get_message(channel_id, message_id)
+    if not message or not message.file:
+        raise HTTPException(status_code=404, detail="File not found on Telegram")
+    file_size = int(getattr(message.file, "size", 0) or 0)
+    if file_size <= 0:
+        raise HTTPException(status_code=404, detail="File size unavailable")
 
     # 2. Parse Range Header
     status_code = 200
@@ -93,11 +96,11 @@ async def stream_video(
     headers = {
         "Accept-Ranges": "bytes",
         "Content-Type": "video/mp4",
+        "Content-Length": str(content_length),
     }
 
     if status_code == 206:
         headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
-        headers["Content-Length"] = str(content_length)
     
     return StreamingResponse(
         iterfile(),
