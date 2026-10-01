@@ -16,7 +16,7 @@ async def main():
     print("🚀 TELEGRAM USER LOGIN UTILITY (Manual Mode)")
     print("="*60)
     print(f"API_ID: {settings.API_ID}")
-    print(f"API_HASH: {settings.API_HASH}")
+    print("API_HASH: configured" if settings.API_HASH else "API_HASH: missing")
     print("-"*60)
     
     session_name = 'user_session'
