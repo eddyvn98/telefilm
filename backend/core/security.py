@@ -5,7 +5,7 @@ import secrets
 import time
 from urllib.parse import parse_qsl
 
-from fastapi import Header, HTTPException, Request
+from fastapi import HTTPException, Request
 
 from .config import get_settings
 
