@@ -47,7 +47,9 @@ async def security_middleware(request: Request, call_next):
         origin = request.headers.get("Origin")
         if origin:
             origin_host = (urlparse(origin).hostname or "").lower()
-            request_host = (request.url.hostname or "").lower()
+            forwarded_host = (request.headers.get("X-Forwarded-Host") or "").split(",")[0].strip()
+            host_header = forwarded_host or request.headers.get("Host", "")
+            request_host = host_header.rsplit(":", 1)[0].strip("[]").lower()
             if origin_host and request_host and origin_host != request_host:
                 return JSONResponse({"detail": "Origin mismatch"}, status_code=403)
 
