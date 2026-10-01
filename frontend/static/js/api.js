@@ -74,3 +74,12 @@ export async function incrementMovieView(movieId) {
     }
     return null;
 }
+
+
+export async function getStreamToken(movieId) {
+    const response = await fetch(`/api/stream/${movieId}/token`, {
+        headers: { 'X-Telegram-Init-Data': tg.initData }
+    });
+    if (!response.ok) throw new Error('Unable to authorize playback');
+    return await response.json();
+}
