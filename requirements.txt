@@ -5,7 +5,7 @@ python-multipart
 aiofiles
 jinja2
 pydantic-settings
-sqlalchemy
+sqlalchemy[asyncio]
 aiosqlite
 httpx
 python-dotenv
