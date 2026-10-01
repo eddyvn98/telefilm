@@ -70,7 +70,7 @@ async def admin_user(user: dict = Depends(authorized_user)) -> dict:
 def create_stream_token(movie_id: int, user_id: str) -> str:
     if not settings.BOT_TOKEN:
         raise HTTPException(status_code=500, detail="Bot token not configured")
-    expires = int(time.time()) + max(30, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 600))
+    expires = int(time.time()) + max(300, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 60 * 60 * 12))
     payload = f"{int(movie_id)}:{str(user_id)}:{expires}"
     signature = hmac.new(settings.BOT_TOKEN.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"{payload}:{signature}"
@@ -84,7 +84,7 @@ def validate_stream_token(token: str, movie_id: int) -> dict:
         raise HTTPException(status_code=401, detail="Invalid stream token")
     if token_movie_id != int(movie_id) or expires < int(time.time()):
         raise HTTPException(status_code=401, detail="Expired or invalid stream token")
-    if expires > int(time.time()) + 660:
+    if expires > int(time.time()) + (60 * 60 * 12) + 60:
         raise HTTPException(status_code=401, detail="Invalid stream token lifetime")
     payload = f"{token_movie_id}:{user_id}:{expires}"
     expected = hmac.new(settings.BOT_TOKEN.encode(), payload.encode(), hashlib.sha256).hexdigest()
