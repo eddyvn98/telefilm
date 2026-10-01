@@ -85,13 +85,6 @@ async def delete_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Delete failed")
     return {"status": "ok", "message": "Movie removed from database"}
 
-@router.post("/config/webapp-url")
-async def update_webapp_url(data: Dict[str, str] = Body(...)):
-    url = str(data.get("url") or "").strip()
-    if not url.startswith("https://") or len(url) > 2048:
-        raise HTTPException(status_code=400, detail="A valid HTTPS URL is required")
-    settings.WEBAPP_URL = url
-    return {"status": "ok", "message": "URL updated"}
 
 @router.post("/config/upload-limit")
 async def update_upload_limit(data: Dict[str, float] = Body(...)):
