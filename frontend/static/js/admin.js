@@ -1,15 +1,35 @@
+let sessionReady = false;
+
 function telegramInitData() {
     return window.Telegram?.WebApp?.initData || "";
 }
 
-function authHeaders(extra = {}) {
+async function ensureSession(force = false) {
     const initData = telegramInitData();
-    return initData ? { ...extra, "X-Telegram-Init-Data": initData } : extra;
+    if (!initData) return;
+    if (sessionReady && !force) return;
+
+    const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ init_data: initData })
+    });
+    if (!response.ok) throw new Error('Admin authentication failed');
+    sessionReady = true;
 }
 
-async function secureFetch(url, options = {}) {
-    const headers = authHeaders(options.headers || {});
-    return fetch(url, { ...options, headers });
+async function secureFetch(url, options = {}, retry = true) {
+    const response = await fetch(url, {
+        ...options,
+        credentials: 'same-origin',
+        headers: { ...(options.headers || {}) }
+    });
+    if (response.status === 401 && retry && telegramInitData()) {
+        await ensureSession(true);
+        return secureFetch(url, options, false);
+    }
+    return response;
 }
 
 function escapeHtml(value) {
@@ -251,10 +271,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Polling for updates
-setInterval(loadStats, 3000);
-setInterval(loadMovies, 10000);
-
-// Init
-loadStats();
-loadMovies();
+// Authenticate first when opened from Telegram. Localhost admin uses the
+// server-side localhost exception and does not need a Telegram session.
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await ensureSession();
+        await Promise.all([loadStats(), loadMovies()]);
+        setInterval(loadStats, 3000);
+        setInterval(loadMovies, 10000);
+    } catch (error) {
+        console.error('Admin init failed:', error);
+        alert('Không thể xác thực trang quản trị.');
+    }
+});

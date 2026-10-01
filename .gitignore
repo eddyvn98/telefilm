@@ -1,26 +1,29 @@
-# .gitignore
+# Secrets and local runtime state
 .env
 *.session
 *.session-journal
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.log
+
+# Python/editor
 __pycache__/
 *.pyc
 .vscode/
 .idea/
 
-# Debug files
+# Generated diagnostics/reports
 diag_results.txt
 diag_test.txt
 peer_results.txt
 peer_test.log
 server.log
+duplicates_report.json
+all_movies_list.txt
 
-# Static assets that might be generated
+# Generated media
 frontend/static/uploads/
-thumbnails/
-backdrops/
-
-*.db-wal
-*.db-shm
+frontend/static/thumbnails/
+frontend/static/backdrops/

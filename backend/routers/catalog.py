@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..core.database import get_db
-from ..core.models import Movie, Category
+from ..core.models import Category, Movie
 from ..core.security import authorized_user
 
 router = APIRouter()
+
 
 class MovieSchema(BaseModel):
     id: int
@@ -24,52 +27,47 @@ class MovieSchema(BaseModel):
     class Config:
         from_attributes = True
 
+
 @router.get("/movies", response_model=List[MovieSchema])
 async def list_movies(
-    skip: int = 0, 
-    limit: int = 20, 
-    search: Optional[str] = None,
-    category_id: Optional[int] = None,
+    skip: int = Query(0, ge=0, le=1_000_000),
+    limit: int = Query(20, ge=1, le=10000),
+    search: Optional[str] = Query(None, max_length=200),
+    category_id: Optional[int] = Query(None, gt=0),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(authorized_user)
+    user: dict = Depends(authorized_user),
 ):
     query = select(Movie)
-    
     if search:
-        query = query.where(Movie.title.ilike(f"%{search}%"))
-    
+        query = query.where(Movie.title.ilike(f"%{search.strip()}%"))
     if category_id:
-         query = query.join(Movie.categories).where(Category.id == category_id)
-         
+        query = query.join(Movie.categories).where(Category.id == category_id)
     query = query.order_by(Movie.id.desc()).offset(skip).limit(limit)
-    
     result = await db.execute(query)
-    movies = result.scalars().all()
-    return movies
+    return result.scalars().all()
+
 
 @router.get("/movies/{movie_id}", response_model=MovieSchema)
 async def get_movie(
-    movie_id: int, 
+    movie_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(authorized_user)
+    user: dict = Depends(authorized_user),
 ):
-    result = await db.execute(select(Movie).where(Movie.id == movie_id))
-    movie = result.scalar_one_or_none()
+    movie = await db.scalar(select(Movie).where(Movie.id == movie_id))
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
+
 
 @router.post("/movies/{movie_id}/view")
 async def increment_view(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(authorized_user)
+    user: dict = Depends(authorized_user),
 ):
-    result = await db.execute(select(Movie).where(Movie.id == movie_id))
-    movie = result.scalar_one_or_none()
+    movie = await db.scalar(select(Movie).where(Movie.id == movie_id))
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
-    
-    movie.views += 1
+    movie.views = (movie.views or 0) + 1
     await db.commit()
     return {"ok": True, "views": movie.views}

@@ -1,11 +1,12 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
-        case_sensitive=True
+        case_sensitive=True,
     )
 
     PROJECT_NAME: str = "Telegram Film"
@@ -17,21 +18,30 @@ class Settings(BaseSettings):
     API_HASH: str = ""
     STORAGE_CHANNEL_ID: str = ""
     WEBAPP_URL: str = ""
-    UPLOAD_SPEED_LIMIT_MB: float = 0.0 # 0 means unlimited
-    ALLOWED_TELEGRAM_IDS: str = "" # Comma-separated list of IDs
-    ADMIN_TELEGRAM_IDS: str = "" # Comma-separated admin IDs; empty = no admin access
+    ALLOWED_TELEGRAM_IDS: str = ""
+    ADMIN_TELEGRAM_IDS: str = ""
 
-    # Filesystem safety
-    UPLOAD_ROOTS: str = "" # Comma-separated absolute roots allowed for admin scan/upload
+    # Filesystem / upload
+    UPLOAD_ROOTS: str = ""
+    UPLOAD_SPEED_LIMIT_MB: float = 0.0
 
-    # Security
+    # Authentication / playback
     SECRET_KEY: str = ""
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 1 week
-    STREAM_TOKEN_TTL_SECONDS: int = 60 * 60 * 6 # 6 hours; supports long playback sessions
+    SESSION_COOKIE_NAME: str = "telefilm_session"
+    SESSION_TTL_SECONDS: int = 60 * 60 * 12
+    SESSION_COOKIE_SECURE: bool = True
+    SESSION_COOKIE_PARTITIONED: bool = True
+    STREAM_TOKEN_TTL_SECONDS: int = 60 * 60 * 6
+    STREAM_TOKEN_RATE_PER_MINUTE: int = 30
+    STREAM_REQUEST_RATE_PER_MINUTE: int = 300
+    MAX_CONCURRENT_STREAMS_PER_USER: int = 6
+
+    # App exposure
+    ENABLE_API_DOCS: bool = False
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./telegram_film.db"
+
 
 @lru_cache()
 def get_settings():
