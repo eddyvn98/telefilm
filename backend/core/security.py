@@ -17,7 +17,10 @@ def _csv_ids(value: str) -> set[str]:
 
 
 def _signing_key() -> bytes:
-    secret = settings.SECRET_KEY or settings.BOT_TOKEN
+    secret = (settings.SECRET_KEY or "").strip()
+    weak_defaults = {"supersecretkey", "yoursupersecretkey", "changeme", "secret"}
+    if len(secret) < 32 or secret.lower() in weak_defaults:
+        secret = settings.BOT_TOKEN
     if not secret:
         raise HTTPException(status_code=500, detail="Server signing key is not configured")
     return secret.encode()
@@ -111,30 +114,11 @@ async def session_user(request: Request) -> dict:
     return _session_from_request(request)
 
 
-async def authorized_user(
-    request: Request,
-    x_telegram_init_data: str | None = Header(None, alias="X-Telegram-Init-Data"),
-) -> dict:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME, "")
-    if token:
-        return validate_session_token(token)
-
-    # Compatibility path for older clients. The current frontend logs in once
-    # and then uses the HttpOnly session cookie.
-    if not x_telegram_init_data:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    user_data = validate_telegram_data(x_telegram_init_data)
-    user_id = str(user_data.get("id"))
-    _ensure_allowed(user_id)
-    user_data["id"] = user_id
-    user_data["_session_id"] = "telegram-initdata"
-    return user_data
+async def authorized_user(request: Request) -> dict:
+    return _session_from_request(request)
 
 
-async def admin_user(
-    request: Request,
-    x_telegram_init_data: str | None = Header(None, alias="X-Telegram-Init-Data"),
-) -> dict:
+async def admin_user(request: Request) -> dict:
     client_host = request.client.host if request.client else ""
     request_host = (request.url.hostname or "").lower()
     forwarded = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For")
@@ -145,13 +129,12 @@ async def admin_user(
     ):
         return {"id": "local-admin", "local": True, "_session_id": "local"}
 
-    user = await authorized_user(request, x_telegram_init_data)
+    user = _session_from_request(request)
     user_id = str(user.get("id"))
     admins = _csv_ids(settings.ADMIN_TELEGRAM_IDS)
     if not admins or user_id not in admins:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
-
 
 def create_stream_token(movie_id: int, user_id: str, session_id: str) -> str:
     expires = int(time.time()) + max(300, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 60 * 60 * 12))
