@@ -1,15 +1,31 @@
 import hashlib
 import hmac
 import json
+import secrets
 import time
 from urllib.parse import parse_qsl
-from .config import get_settings
+
 from fastapi import Header, HTTPException, Request
+
+from .config import get_settings
 
 settings = get_settings()
 
+
 def _csv_ids(value: str) -> set[str]:
     return {item.strip() for item in (value or "").split(",") if item.strip()}
+
+
+def _signing_key() -> bytes:
+    secret = settings.SECRET_KEY or settings.BOT_TOKEN
+    if not secret:
+        raise HTTPException(status_code=500, detail="Server signing key is not configured")
+    return secret.encode()
+
+
+def _hmac(payload: str) -> str:
+    return hmac.new(_signing_key(), payload.encode(), hashlib.sha256).hexdigest()
+
 
 def validate_telegram_data(init_data: str) -> dict:
     if not settings.BOT_TOKEN:
@@ -36,7 +52,6 @@ def validate_telegram_data(init_data: str) -> dict:
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
     secret_key = hmac.new(b"WebAppData", settings.BOT_TOKEN.encode(), hashlib.sha256).digest()
     calculated = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
     if not hmac.compare_digest(calculated, start_hash):
         raise HTTPException(status_code=403, detail="Invalid data signature")
 
@@ -49,67 +64,124 @@ def validate_telegram_data(init_data: str) -> dict:
         raise HTTPException(status_code=400, detail="Missing Telegram user")
     return user_data
 
-async def authorized_user(
-    x_telegram_init_data: str = Header(..., alias="X-Telegram-Init-Data")
-) -> dict:
-    user_data = validate_telegram_data(x_telegram_init_data)
-    telegram_id = str(user_data.get("id"))
-    allowed = _csv_ids(settings.ALLOWED_TELEGRAM_IDS)
-    if telegram_id not in allowed:
+
+def _ensure_allowed(user_id: str) -> None:
+    if user_id not in _csv_ids(settings.ALLOWED_TELEGRAM_IDS):
         raise HTTPException(status_code=403, detail="Unauthorized")
+
+
+def create_session_token(user_id: str) -> str:
+    expires = int(time.time()) + max(300, int(settings.SESSION_TTL_SECONDS))
+    session_id = secrets.token_urlsafe(18)
+    payload = f"{user_id}:{expires}:{session_id}"
+    return f"{payload}:{_hmac(payload)}"
+
+
+def validate_session_token(token: str) -> dict:
+    try:
+        user_id, expires_raw, session_id, signature = str(token or "").rsplit(":", 3)
+        expires = int(expires_raw)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    if not user_id or not session_id or expires < int(time.time()):
+        raise HTTPException(status_code=401, detail="Session expired")
+
+    max_expiry = int(time.time()) + max(300, int(settings.SESSION_TTL_SECONDS)) + 60
+    if expires > max_expiry:
+        raise HTTPException(status_code=401, detail="Invalid session lifetime")
+
+    payload = f"{user_id}:{expires}:{session_id}"
+    expected = _hmac(payload)
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    _ensure_allowed(user_id)
+    return {"id": user_id, "_session_id": session_id, "_session_expires": expires}
+
+
+def _session_from_request(request: Request) -> dict:
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME, "")
+    if not token:
+        raise HTTPException(status_code=401, detail="Session required")
+    return validate_session_token(token)
+
+
+async def session_user(request: Request) -> dict:
+    return _session_from_request(request)
+
+
+async def authorized_user(
+    request: Request,
+    x_telegram_init_data: str | None = Header(None, alias="X-Telegram-Init-Data"),
+) -> dict:
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME, "")
+    if token:
+        return validate_session_token(token)
+
+    # Compatibility path for older clients. The current frontend logs in once
+    # and then uses the HttpOnly session cookie.
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    user_data = validate_telegram_data(x_telegram_init_data)
+    user_id = str(user_data.get("id"))
+    _ensure_allowed(user_id)
+    user_data["id"] = user_id
+    user_data["_session_id"] = "telegram-initdata"
     return user_data
+
 
 async def admin_user(
     request: Request,
     x_telegram_init_data: str | None = Header(None, alias="X-Telegram-Init-Data"),
 ) -> dict:
-    # Local desktop admin remains usable. Cloudflare Tunnel requests carry
-    # forwarding headers, so they must still authenticate through Telegram.
     client_host = request.client.host if request.client else ""
     request_host = (request.url.hostname or "").lower()
-    forwarded = (
-        request.headers.get("CF-Connecting-IP")
-        or request.headers.get("X-Forwarded-For")
-    )
+    forwarded = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For")
     if (
         not forwarded
         and client_host in {"127.0.0.1", "::1", "localhost"}
         and request_host in {"127.0.0.1", "::1", "localhost"}
     ):
-        return {"id": "local-admin", "local": True}
+        return {"id": "local-admin", "local": True, "_session_id": "local"}
 
-    if not x_telegram_init_data:
-        raise HTTPException(status_code=401, detail="Telegram authentication required")
-    user = validate_telegram_data(x_telegram_init_data)
-    telegram_id = str(user.get("id"))
-    allowed = _csv_ids(settings.ALLOWED_TELEGRAM_IDS)
+    user = await authorized_user(request, x_telegram_init_data)
+    user_id = str(user.get("id"))
     admins = _csv_ids(settings.ADMIN_TELEGRAM_IDS)
-    if telegram_id not in allowed or telegram_id not in admins:
+    if not admins or user_id not in admins:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
 
-def create_stream_token(movie_id: int, user_id: str) -> str:
-    if not settings.BOT_TOKEN:
-        raise HTTPException(status_code=500, detail="Bot token not configured")
+def create_stream_token(movie_id: int, user_id: str, session_id: str) -> str:
     expires = int(time.time()) + max(300, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 60 * 60 * 12))
-    payload = f"{int(movie_id)}:{str(user_id)}:{expires}"
-    signature = hmac.new(settings.BOT_TOKEN.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    return f"{payload}:{signature}"
+    nonce = secrets.token_urlsafe(8)
+    payload = f"{int(movie_id)}:{user_id}:{session_id}:{expires}:{nonce}"
+    return f"{payload}:{_hmac(payload)}"
 
-def validate_stream_token(token: str, movie_id: int) -> dict:
+
+def validate_stream_token(
+    token: str,
+    movie_id: int,
+    expected_user_id: str,
+    expected_session_id: str,
+) -> dict:
     try:
-        token_movie, user_id, expires_raw, signature = str(token or "").rsplit(":", 3)
+        token_movie, user_id, session_id, expires_raw, nonce, signature = str(token or "").rsplit(":", 5)
         expires = int(expires_raw)
         token_movie_id = int(token_movie)
     except (TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid stream token")
-    if token_movie_id != int(movie_id) or expires < int(time.time()):
+
+    now = int(time.time())
+    if token_movie_id != int(movie_id) or expires < now:
         raise HTTPException(status_code=401, detail="Expired or invalid stream token")
-    if expires > int(time.time()) + (60 * 60 * 12) + 60:
+    if expires > now + (60 * 60 * 12) + 60:
         raise HTTPException(status_code=401, detail="Invalid stream token lifetime")
-    payload = f"{token_movie_id}:{user_id}:{expires}"
-    expected = hmac.new(settings.BOT_TOKEN.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, signature):
+    if user_id != str(expected_user_id) or session_id != str(expected_session_id):
+        raise HTTPException(status_code=401, detail="Stream token is not valid for this session")
+
+    payload = f"{token_movie_id}:{user_id}:{session_id}:{expires}:{nonce}"
+    if not hmac.compare_digest(_hmac(payload), signature):
         raise HTTPException(status_code=401, detail="Invalid stream token")
-    return {"user_id": user_id, "expires": expires}
+    return {"user_id": user_id, "session_id": session_id, "expires": expires}
