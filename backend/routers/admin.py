@@ -18,13 +18,13 @@ def _allowed_upload_roots() -> list[str]:
         raw = raw.strip()
         if not raw:
             continue
-        roots.append(os.path.realpath(os.path.abspath(raw)))
+        roots.append(os.path.normcase(os.path.realpath(os.path.abspath(raw))))
     return roots
 
 def _validate_scan_path(path: str) -> str:
     if not path or not str(path).strip():
         raise HTTPException(status_code=400, detail="Path is required")
-    candidate = os.path.realpath(os.path.abspath(str(path).strip()))
+    candidate = os.path.normcase(os.path.realpath(os.path.abspath(str(path).strip())))
     roots = _allowed_upload_roots()
     if not roots:
         raise HTTPException(status_code=503, detail="UPLOAD_ROOTS is not configured")
