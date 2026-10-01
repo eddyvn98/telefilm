@@ -28,5 +28,7 @@ jobs:
           done
       - name: Install Python dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Verify async SQLAlchemy dependency
+        run: python -c "import greenlet; print('greenlet OK')"
       - name: Import application
         run: python -c "import backend.main; print('backend import OK')"
