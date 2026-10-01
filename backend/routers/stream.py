@@ -7,6 +7,7 @@ from ..core.security import validate_stream_token, authorized_user, create_strea
 from sqlalchemy import select
 
 router = APIRouter()
+settings = get_settings()
 
 @router.get("/{movie_id}/token")
 async def issue_stream_token(
@@ -77,13 +78,16 @@ async def stream_video(
                 start = int(range_start)
                 if range_end:
                     end = int(range_end)
-        except ValueError:
-            pass # Fallback to full file if invalid range
-            
-    # Ensure end is within bounds
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=416, detail="Invalid Range header")
+
+    if start < 0 or start >= file_size:
+        raise HTTPException(status_code=416, detail="Range start out of bounds")
     if end >= file_size:
         end = file_size - 1
-        
+    if end < start:
+        raise HTTPException(status_code=416, detail="Invalid Range header")
+
     content_length = end - start + 1
     
     # 3. Stream Generator
