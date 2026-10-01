@@ -49,12 +49,6 @@ async def analyze_duplicates():
     else:
         print("✅ Không tìm thấy phim nào trùng khớp cả Tên và Kích thước.")
         
-    # Tạo danh sách toàn bộ phim để người dùng lọc tay
-    full_list_file = "all_movies_list.txt"
-    with open(full_list_file, "w", encoding="utf-8") as f:
-        for m in sorted(movies, key=lambda x: x.title):
-            f.write(f"ID: {m.id} | Size: {m.size_bytes} | Title: {m.title}\n")
-    print(f"📜 Danh sách toàn bộ phim (để lọc tay) đã lưu vào: {full_list_file}")
 
 if __name__ == "__main__":
     asyncio.run(analyze_duplicates())
