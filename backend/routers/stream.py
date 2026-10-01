@@ -16,7 +16,7 @@ async def issue_stream_token(
 ):
     return {
         "token": create_stream_token(movie_id, str(user["id"])),
-        "expires_in": max(30, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 600)),
+        "expires_in": max(300, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 60 * 60 * 12)),
     }
 
 @router.get("/{movie_id}")
