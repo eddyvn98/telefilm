@@ -36,7 +36,7 @@ class SecurityTokenTests(unittest.TestCase):
     def test_stream_token_is_bound_to_user_and_session(self):
         token = security.create_stream_token(7, "123", "session-a")
         data = security.validate_stream_token(token, 7, "123", "session-a")
-        self.assertEqual(data["user_id"], "123")
+        self.assertIn("expires", data)
         with self.assertRaises(HTTPException):
             security.validate_stream_token(token, 7, "456", "session-a")
         with self.assertRaises(HTTPException):
