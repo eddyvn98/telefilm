@@ -15,21 +15,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-import httpx
-
 async def get_live_webapp_url():
-    """Fetch the current WebApp URL from the backend API, or re-read .env."""
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get("http://localhost:9999/api/admin/stats", timeout=2)
-            if resp.status_code == 200:
-                data = resp.json()
-                url = data.get("webapp_url")
-                if url: return url
-    except:
-        pass
-    
-    # Fallback: Reload .env file to get the latest change from start_tunnel.py
+    """Reload .env so a newly-created tunnel URL is picked up immediately."""
     from dotenv import load_dotenv
     load_dotenv(override=True)
     return os.getenv("WEBAPP_URL", SPEED_TEST_URL)
