@@ -76,6 +76,10 @@ async def login(
         samesite="none" if settings.SESSION_COOKIE_SECURE else "lax",
         path="/",
     )
+    if settings.SESSION_COOKIE_PARTITIONED and settings.SESSION_COOKIE_SECURE:
+        current = response.headers.get("set-cookie", "")
+        if current and "Partitioned" not in current:
+            response.headers["set-cookie"] = current + "; Partitioned"
     response.headers["Cache-Control"] = "no-store"
     return {
         "status": "ok",
@@ -91,4 +95,8 @@ async def logout(response: Response):
         secure=bool(settings.SESSION_COOKIE_SECURE),
         samesite="none" if settings.SESSION_COOKIE_SECURE else "lax",
     )
+    if settings.SESSION_COOKIE_PARTITIONED and settings.SESSION_COOKIE_SECURE:
+        current = response.headers.get("set-cookie", "")
+        if current and "Partitioned" not in current:
+            response.headers["set-cookie"] = current + "; Partitioned"
     return {"status": "ok"}
