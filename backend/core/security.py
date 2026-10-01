@@ -66,11 +66,16 @@ async def admin_user(
     # Local desktop admin remains usable. Cloudflare Tunnel requests carry
     # forwarding headers, so they must still authenticate through Telegram.
     client_host = request.client.host if request.client else ""
+    request_host = (request.url.hostname or "").lower()
     forwarded = (
         request.headers.get("CF-Connecting-IP")
         or request.headers.get("X-Forwarded-For")
     )
-    if not forwarded and client_host in {"127.0.0.1", "::1", "localhost"}:
+    if (
+        not forwarded
+        and client_host in {"127.0.0.1", "::1", "localhost"}
+        and request_host in {"127.0.0.1", "::1", "localhost"}
+    ):
         return {"id": "local-admin", "local": True}
 
     if not x_telegram_init_data:
