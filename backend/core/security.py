@@ -136,10 +136,16 @@ async def admin_user(request: Request) -> dict:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
+def _stream_binding(user_id: str, session_id: str) -> str:
+    raw = f"{user_id}:{session_id}".encode()
+    return hashlib.sha256(raw).hexdigest()[:24]
+
+
 def create_stream_token(movie_id: int, user_id: str, session_id: str) -> str:
     expires = int(time.time()) + max(300, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 60 * 60 * 12))
     nonce = secrets.token_urlsafe(8)
-    payload = f"{int(movie_id)}:{user_id}:{session_id}:{expires}:{nonce}"
+    binding = _stream_binding(str(user_id), str(session_id))
+    payload = f"{int(movie_id)}:{binding}:{expires}:{nonce}"
     return f"{payload}:{_hmac(payload)}"
 
 
@@ -150,7 +156,7 @@ def validate_stream_token(
     expected_session_id: str,
 ) -> dict:
     try:
-        token_movie, user_id, session_id, expires_raw, nonce, signature = str(token or "").rsplit(":", 5)
+        token_movie, binding, expires_raw, nonce, signature = str(token or "").rsplit(":", 4)
         expires = int(expires_raw)
         token_movie_id = int(token_movie)
     except (TypeError, ValueError):
@@ -161,10 +167,12 @@ def validate_stream_token(
         raise HTTPException(status_code=401, detail="Expired or invalid stream token")
     if expires > now + (60 * 60 * 12) + 60:
         raise HTTPException(status_code=401, detail="Invalid stream token lifetime")
-    if user_id != str(expected_user_id) or session_id != str(expected_session_id):
+
+    expected_binding = _stream_binding(str(expected_user_id), str(expected_session_id))
+    if not hmac.compare_digest(binding, expected_binding):
         raise HTTPException(status_code=401, detail="Stream token is not valid for this session")
 
-    payload = f"{token_movie_id}:{user_id}:{session_id}:{expires}:{nonce}"
+    payload = f"{token_movie_id}:{binding}:{expires}:{nonce}"
     if not hmac.compare_digest(_hmac(payload), signature):
         raise HTTPException(status_code=401, detail="Invalid stream token")
-    return {"user_id": user_id, "session_id": session_id, "expires": expires}
+    return {"expires": expires}
