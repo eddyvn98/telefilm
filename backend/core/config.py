@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     SESSION_COOKIE_NAME: str = "telefilm_session"
     SESSION_TTL_SECONDS: int = 60 * 60 * 12
     SESSION_COOKIE_SECURE: bool = True
+    SESSION_COOKIE_PARTITIONED: bool = True
     STREAM_TOKEN_TTL_SECONDS: int = 60 * 60 * 6
     STREAM_TOKEN_RATE_PER_MINUTE: int = 30
     STREAM_REQUEST_RATE_PER_MINUTE: int = 300
