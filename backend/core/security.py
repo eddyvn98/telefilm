@@ -4,7 +4,7 @@ import json
 import time
 from urllib.parse import parse_qsl
 from .config import get_settings
-from fastapi import Depends, Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
 settings = get_settings()
 
@@ -59,10 +59,27 @@ async def authorized_user(
         raise HTTPException(status_code=403, detail="Unauthorized")
     return user_data
 
-async def admin_user(user: dict = Depends(authorized_user)) -> dict:
+async def admin_user(
+    request: Request,
+    x_telegram_init_data: str | None = Header(None, alias="X-Telegram-Init-Data"),
+) -> dict:
+    # Local desktop admin remains usable. Cloudflare Tunnel requests carry
+    # forwarding headers, so they must still authenticate through Telegram.
+    client_host = request.client.host if request.client else ""
+    forwarded = (
+        request.headers.get("CF-Connecting-IP")
+        or request.headers.get("X-Forwarded-For")
+    )
+    if not forwarded and client_host in {"127.0.0.1", "::1", "localhost"}:
+        return {"id": "local-admin", "local": True}
+
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Telegram authentication required")
+    user = validate_telegram_data(x_telegram_init_data)
     telegram_id = str(user.get("id"))
+    allowed = _csv_ids(settings.ALLOWED_TELEGRAM_IDS)
     admins = _csv_ids(settings.ADMIN_TELEGRAM_IDS)
-    if not admins or telegram_id not in admins:
+    if telegram_id not in allowed or telegram_id not in admins:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
