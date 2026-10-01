@@ -70,7 +70,8 @@ async def security_middleware(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
     elif "Cache-Control" not in response.headers:
         response.headers["Cache-Control"] = "no-cache"
-    response.headers.pop("X-Frame-Options", None)
+    if "X-Frame-Options" in response.headers:
+        del response.headers["X-Frame-Options"]
     return response
 
 
