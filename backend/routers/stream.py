@@ -1,32 +1,35 @@
-from fastapi import APIRouter, Header, HTTPException, Request, Response, Query
+from fastapi import APIRouter, Header, HTTPException, Request, Response, Query, Depends
 from fastapi.responses import StreamingResponse
 from ..services.telegram_client import TelegramClientService
 from ..core.database import AsyncSessionLocal
 from ..core.models import Movie
-from ..core.security import validate_telegram_data, get_settings
+from ..core.security import validate_stream_token, authorized_user, create_stream_token, get_settings
 from sqlalchemy import select
 
 router = APIRouter()
 
+@router.get("/{movie_id}/token")
+async def issue_stream_token(
+    movie_id: int,
+    user: dict = Depends(authorized_user),
+):
+    return {
+        "token": create_stream_token(movie_id, str(user["id"])),
+        "expires_in": max(30, min(int(settings.STREAM_TOKEN_TTL_SECONDS), 600)),
+    }
+
 @router.get("/{movie_id}")
 async def stream_video(
-    movie_id: int, 
+    movie_id: int,
     request: Request,
     range: str = Header(None),
-    init_data: str = Query(..., alias="init_data"),
+    token: str = Query(...),
 ):
     """
     Stream video content. Supports Range requests for seeking.
+    A short-lived signed playback token is required; Telegram initData is never put in URLs.
     """
-    # Authorization check
-    settings = get_settings()
-    user_data = validate_telegram_data(init_data)
-    telegram_id = str(user_data.get("id"))
-    
-    if settings.ALLOWED_TELEGRAM_IDS:
-        allowed_list = [i.strip() for i in settings.ALLOWED_TELEGRAM_IDS.split(",") if i.strip()]
-        if telegram_id not in allowed_list:
-            raise HTTPException(status_code=403, detail="Unauthorized")
+    validate_stream_token(token, movie_id)
 
     # 1. Get Movie Metadata
     # Avoid holding a DB session during long-lived StreamingResponse.
