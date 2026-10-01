@@ -1,7 +1,27 @@
+function telegramInitData() {
+    return window.Telegram?.WebApp?.initData || "";
+}
+
+function authHeaders(extra = {}) {
+    const initData = telegramInitData();
+    return initData ? { ...extra, "X-Telegram-Init-Data": initData } : extra;
+}
+
+async function secureFetch(url, options = {}) {
+    const headers = authHeaders(options.headers || {});
+    return fetch(url, { ...options, headers });
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+}
+
 console.log("Admin JS Loaded v1.1");
 async function loadStats() {
     try {
-        const response = await fetch('/api/admin/stats');
+        const response = await secureFetch('/api/admin/stats');
         const data = await response.json();
 
         document.getElementById('stat-movies').innerText = data.total_movies;
@@ -28,7 +48,7 @@ async function loadStats() {
         const progressFill = document.getElementById('progress-bar-fill');
 
         if (uploadInfo.is_uploading) {
-            uploadStat.innerHTML = `<span class="text-primary animate-pulse text-sm">${uploadInfo.progress.status}</span>`;
+            uploadStat.textContent = uploadInfo.progress.status || "Uploading";
             if (uploadInfo.progress.percent !== undefined) {
                 progressBar.classList.remove('hidden');
                 progressFill.style.width = `${uploadInfo.progress.percent}%`;
@@ -49,7 +69,7 @@ async function loadStats() {
 
 async function loadMovies() {
     try {
-        const response = await fetch('/api/admin/movies');
+        const response = await secureFetch('/api/admin/movies');
         const movies = await response.json();
         const container = document.getElementById('movie-list');
         const mobileContainer = document.getElementById('movie-list-mobile');
@@ -58,8 +78,8 @@ async function loadMovies() {
         container.innerHTML = movies.map(m => `
             <tr class="hover:bg-white/2 transition-colors">
                 <td class="px-6 py-4 text-sm font-mono text-white/40">#${m.id}</td>
-                <td class="px-6 py-4 text-sm font-bold">${m.title}</td>
-                <td class="px-6 py-4 text-[10px] font-mono text-white/30 truncate max-w-[150px]">${m.file_id}</td>
+                <td class="px-6 py-4 text-sm font-bold">${escapeHtml(m.title)}</td>
+                <td class="px-6 py-4 text-[10px] font-mono text-white/30 truncate max-w-[150px]">${escapeHtml(m.file_id)}</td>
                 <td class="px-6 py-4 text-sm text-white/50">${m.release_year}</td>
                 <td class="px-6 py-4 text-right">
                     <button onclick="deleteMovie(${m.id})" class="p-2 hover:bg-red-500/10 text-red-500/50 hover:text-red-500 rounded-lg transition-all">
@@ -73,7 +93,7 @@ async function loadMovies() {
         mobileContainer.innerHTML = movies.map(m => `
             <div class="p-5 flex justify-between items-center group active:bg-white/5 transition-all">
                 <div class="flex-1 min-w-0 pr-4">
-                    <h4 class="font-bold text-sm truncate mb-1">${m.title}</h4>
+                    <h4 class="font-bold text-sm truncate mb-1">${escapeHtml(m.title)}</h4>
                     <div class="flex items-center gap-2 text-[10px] text-white/30 font-mono">
                         <span class="bg-white/5 px-1.5 py-0.5 rounded">ID: ${m.id}</span>
                         <span>${m.release_year || '2024'}</span>
@@ -97,7 +117,7 @@ async function deleteMovie(id) {
 
     const executeDelete = async () => {
         try {
-            const response = await fetch(`/api/admin/movies/${id}`, { method: 'DELETE' });
+            const response = await secureFetch(`/api/admin/movies/${id}`, { method: 'DELETE' });
             if (response.ok) {
                 loadMovies();
                 loadStats();
@@ -137,7 +157,7 @@ async function startScan() {
     btn.innerText = "Processing...";
 
     try {
-        const response = await fetch('/api/admin/upload/scan', {
+        const response = await secureFetch('/api/admin/upload/scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: path })
@@ -170,7 +190,7 @@ window.cleanupDuplicates = async function (event) {
     btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Cleaning...`;
 
     try {
-        const response = await fetch('/api/admin/cleanup/duplicates', {
+        const response = await secureFetch('/api/admin/cleanup/duplicates', {
             method: 'POST'
         });
 
@@ -198,7 +218,7 @@ async function saveSpeedLimit() {
     const limit = parseFloat(limitInput.value) || 0;
 
     try {
-        const response = await fetch('/api/admin/config/upload-limit', {
+        const response = await secureFetch('/api/admin/config/upload-limit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ limit: limit })

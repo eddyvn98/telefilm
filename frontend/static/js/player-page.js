@@ -4,7 +4,7 @@ import { exitCinemaMode } from './player-cinema.js';
 import { renderMovieList, showResumeBanner } from './ui.js';
 import { initPlayerGestures } from './player-gestures.js';
 import { startTracking, stopTracking, flushNow } from './history.js';
-import { incrementMovieView } from './api.js';
+import { incrementMovieView, getStreamToken } from './api.js';
 
 function initSoftwareVolume() {
     if (!state.player) return;
@@ -38,7 +38,7 @@ function initSoftwareVolume() {
     }
 }
 
-export function loadMovie(id) {
+export async function loadMovie(id) {
     const movie = state.movies.find(m => m.id === id);
     if (!movie) return;
 
@@ -79,7 +79,8 @@ export function loadMovie(id) {
     // Initialize Software Volume (GainNode) for iOS/Mobile support
     initSoftwareVolume();
 
-    const newSrc = `/api/stream/${movie.id}?init_data=${encodeURIComponent(tg.initData)}`;
+    const playback = await getStreamToken(movie.id);
+    const newSrc = `/api/stream/${movie.id}?token=${encodeURIComponent(playback.token)}`;
 
     if (state.currentSrc !== newSrc) {
         updateState({ currentSrc: newSrc });

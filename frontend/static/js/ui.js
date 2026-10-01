@@ -1,14 +1,25 @@
 import { state, elements, screens, tg } from './state.js';
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+function safeMovieId(value) {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? id : 0;
+}
 // ── User Profile ──────────────────────────────────────────────────────────
 
 export function renderUser() {
     const user = tg.initDataUnsafe?.user;
     if (!user) return;
     elements.userProfile.innerHTML = `
-        <span class="text-sm font-semibold text-white/80">${user.first_name}</span>
+        <span class="text-sm font-semibold text-white/80">${escapeHtml(user.first_name)}</span>
         ${user.photo_url
-            ? `<img src="${user.photo_url}" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary/30" alt="avatar">`
-            : `<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">${user.first_name[0]}</div>`
+            ? `<img src="${escapeHtml(user.photo_url)}" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary/30" alt="avatar">`
+            : `<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">${escapeHtml((user.first_name || '?')[0])}</div>`
         }
     `;
 }
@@ -18,20 +29,20 @@ export function renderUser() {
 export function renderHero(movie) {
     if (!movie) return;
     elements.featuredHero.innerHTML = `
-        <div class="relative rounded-3xl overflow-hidden aspect-[16/9] cursor-pointer group" onclick="playMovie(${movie.id})">
-            <img src="${movie.poster_url || '/static/img/placeholder.jpg'}"
+        <div class="relative rounded-3xl overflow-hidden aspect-[16/9] cursor-pointer group" onclick="playMovie(${safeMovieId(movie.id)})">
+            <img src="${escapeHtml(movie.poster_url || '/static/img/placeholder.jpg')}"
                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                 alt="${movie.title}" loading="lazy">
+                 alt="${escapeHtml(movie.title)}" loading="lazy">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
             <div class="absolute bottom-0 left-0 right-0 p-6">
                 <div class="inline-flex items-center gap-1.5 bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full px-3 py-1 mb-3">
                     <i class="fa-solid fa-fire text-primary text-xs"></i>
                     <span class="text-primary text-xs font-bold uppercase tracking-wider">Featured</span>
                 </div>
-                <h2 class="text-2xl font-bold tracking-tight mb-1">${movie.title}</h2>
-                <p class="text-white/60 text-sm line-clamp-2">${movie.description || ''}</p>
+                <h2 class="text-2xl font-bold tracking-tight mb-1">${escapeHtml(movie.title)}</h2>
+                <p class="text-white/60 text-sm line-clamp-2">${escapeHtml(movie.description || '')}</p>
                 <div class="mt-4 flex gap-3">
-                    <button onclick="event.stopPropagation(); playMovie(${movie.id})"
+                    <button onclick="event.stopPropagation(); playMovie(${safeMovieId(movie.id)})"
                         class="flex items-center gap-2 bg-primary text-black font-bold px-6 py-2.5 rounded-full text-sm hover:bg-primary/90 transition-all">
                         <i class="fa-solid fa-play text-xs"></i> Xem Ngay
                     </button>
@@ -49,16 +60,16 @@ export function renderHero(movie) {
 export function renderMovieList(movies, container) {
     if (!container) return;
     container.innerHTML = movies.map(m => `
-        <div class="movie-card cursor-pointer group" onclick="playMovie(${m.id})">
+        <div class="movie-card cursor-pointer group" onclick="playMovie(${safeMovieId(m.id)})">
             <div class="relative rounded-2xl overflow-hidden aspect-[2/3]">
-                <img src="${m.poster_url || '/static/img/placeholder.jpg'}"
+                <img src="${escapeHtml(m.poster_url || '/static/img/placeholder.jpg')}"
                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                     alt="${m.title}" loading="lazy">
+                     alt="${escapeHtml(m.title)}" loading="lazy">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                    <span class="text-xs font-semibold truncate">${m.title}</span>
+                    <span class="text-xs font-semibold truncate">${escapeHtml(m.title)}</span>
                 </div>
             </div>
-            <p class="text-xs font-medium mt-2 text-white/70 truncate">${m.title}</p>
+            <p class="text-xs font-medium mt-2 text-white/70 truncate">${escapeHtml(m.title)}</p>
         </div>
     `).join('');
 }

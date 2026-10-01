@@ -2,6 +2,17 @@
  * history-ui.js – Renders "Continue Watching", "Watch History", "Recommendations" sections.
  */
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+function safeId(value) {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? id : 0;
+}
+
 // ── Templates ─────────────────────────────────────────────────────────────────
 
 function _progressBar(percent) {
@@ -15,16 +26,16 @@ function _progressBar(percent) {
 function _continueCard(item) {
     const pct = item.progress_percent || 0;
     return `
-        <div class="continue-card cursor-pointer group flex-shrink-0 w-28" onclick="playMovie(${item.movie_id})">
+        <div class="continue-card cursor-pointer group flex-shrink-0 w-28" onclick="playMovie(${safeId(item.movie_id)})">
             <div class="relative rounded-xl overflow-hidden aspect-[2/3]">
-                <img src="${item.poster_url || '/static/img/placeholder.jpg'}"
+                <img src="${escapeHtml(item.poster_url || '/static/img/placeholder.jpg')}"
                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                     alt="${item.title}" loading="lazy">
+                     alt="${escapeHtml(item.title)}" loading="lazy">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 ${pct > 0 ? _progressBar(pct) : ''}
                 ${pct > 0 ? `<div class="absolute top-2 right-2 bg-black/70 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-md">${Math.round(pct)}%</div>` : ''}
             </div>
-            <p class="text-xs font-medium mt-1.5 text-white/70 truncate">${item.title}</p>
+            <p class="text-xs font-medium mt-1.5 text-white/70 truncate">${escapeHtml(item.title)}</p>
         </div>`;
 }
 
@@ -38,11 +49,11 @@ function _historyCard(item) {
         : '';
     const timeAgo = _relativeTime(item.last_watched_at);
     return `
-        <div class="cursor-pointer group flex-shrink-0 w-28" onclick="playMovie(${item.movie_id})">
+        <div class="cursor-pointer group flex-shrink-0 w-28" onclick="playMovie(${safeId(item.movie_id)})">
             <div class="relative rounded-xl overflow-hidden aspect-[2/3]">
-                <img src="${item.poster_url || '/static/img/placeholder.jpg'}"
+                <img src="${escapeHtml(item.poster_url || '/static/img/placeholder.jpg')}"
                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                     alt="${item.title}" loading="lazy">
+                     alt="${escapeHtml(item.title)}" loading="lazy">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 ${completedBadge}
                 ${!isCompleted && pct > 0 ? _progressBar(pct) : ''}
@@ -50,7 +61,7 @@ function _historyCard(item) {
             ? `<div class="absolute bottom-2 right-2 bg-black/70 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-md">${Math.round(pct)}%</div>`
             : ''}
             </div>
-            <p class="text-xs font-medium mt-1.5 text-white/80 truncate">${item.title}</p>
+            <p class="text-xs font-medium mt-1.5 text-white/80 truncate">${escapeHtml(item.title)}</p>
             <div class="flex items-center justify-between mt-0.5">
                 <p class="text-[10px] text-white/30 truncate">${timeAgo}</p>
                 <div class="flex items-center gap-1 text-[10px] text-white/40">
@@ -66,16 +77,16 @@ function _recommendCard(item) {
         ? `<div class="absolute top-2 left-2 bg-primary/90 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">Xem tiếp</div>`
         : '';
     return `
-        <div class="cursor-pointer group flex-shrink-0 w-28" onclick="playMovie(${item.movie_id})">
+        <div class="cursor-pointer group flex-shrink-0 w-28" onclick="playMovie(${safeId(item.movie_id)})">
             <div class="relative rounded-xl overflow-hidden aspect-[2/3]">
-                <img src="${item.poster_url || '/static/img/placeholder.jpg'}"
+                <img src="${escapeHtml(item.poster_url || '/static/img/placeholder.jpg')}"
                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                     alt="${item.title}" loading="lazy">
+                     alt="${escapeHtml(item.title)}" loading="lazy">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 ${badge}
                 ${item.progress_percent > 0 ? _progressBar(item.progress_percent) : ''}
             </div>
-            <p class="text-xs font-medium mt-1.5 text-white/70 truncate">${item.title}</p>
+            <p class="text-xs font-medium mt-1.5 text-white/70 truncate">${escapeHtml(item.title)}</p>
             <div class="flex items-center gap-1 text-[9px] text-white/30 mt-0.5">
                 <i class="fa-solid fa-eye text-[8px]"></i>
                 <span>${(item.global_views || 0).toLocaleString()} lượt xem</span>

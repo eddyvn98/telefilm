@@ -21,3 +21,6 @@ server.log
 frontend/static/uploads/
 thumbnails/
 backdrops/
+
+*.db-wal
+*.db-shm
