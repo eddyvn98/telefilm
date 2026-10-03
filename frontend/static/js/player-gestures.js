@@ -10,6 +10,7 @@ let startBrightness = 100;
 let startSeekTime = 0;
 let side = 'none'; // 'left', 'middle', 'right'
 let swipeThreshold = 60;
+let gestureActive = false;
 
 // Ref to dynamically injected elements
 let gestureIndicators = {};
@@ -26,7 +27,7 @@ export function initPlayerGestures() {
 
     // Create the layer
     const layer = document.createElement('div');
-    layer.className = 'dynamic-gesture-layer absolute inset-0 z-[10] touch-none pointer-events-auto';
+    layer.className = 'dynamic-gesture-layer absolute inset-0 z-[10] touch-none pointer-events-none';
 
     layer.innerHTML = `
         <div id="dynamic-brightness-overlay" class="absolute inset-0 bg-black pointer-events-none z-[11]" style="opacity: 0; transition: opacity 0.1s ease;"></div>
@@ -55,13 +56,25 @@ export function initPlayerGestures() {
         brightness: layer.querySelector('#dynamic-brightness-overlay')
     };
 
-    layer.addEventListener('touchstart', handleTouchStart, { passive: false });
-    layer.addEventListener('touchmove', handleTouchMove, { passive: false });
-    layer.addEventListener('touchend', handleTouchEnd, { passive: false });
+    // Listen on the player container instead of placing a touch-capturing layer
+    // above Plyr. Native controls/buttons keep first chance at the touch.
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false });
+    container.addEventListener('touchcancel', () => { gestureActive = false; }, { passive: true });
 }
 
 function handleTouchStart(e) {
     if (e.touches.length > 1) return;
+    const interactive = e.target instanceof Element && e.target.closest(
+        '.plyr__controls, .plyr__control, .plyr__menu, button, input, select, a, [role="button"]'
+    );
+    if (interactive) {
+        gestureActive = false;
+        return;
+    }
+
+    gestureActive = true;
     const touch = e.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
@@ -87,7 +100,7 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
-    if (e.touches.length > 1) return;
+    if (!gestureActive || e.touches.length > 1) return;
     const touch = e.touches[0];
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
@@ -126,6 +139,8 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
+    if (!gestureActive) return;
+    gestureActive = false;
     hideIndicators();
     if (!e.changedTouches[0]) return;
 
