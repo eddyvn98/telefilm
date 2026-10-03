@@ -1,6 +1,6 @@
 import { state, elements, tg, updateState, screens, getProgress } from './state.js';
 import { initPlyr, setupHLS } from './player.js';
-import { exitCinemaMode } from './player-cinema.js';
+import { exitCinemaMode, handleOrientationChange } from './player-cinema.js';
 import { renderMovieList, showResumeBanner } from './ui.js';
 import { initPlayerGestures } from './player-gestures.js';
 import { startTracking, stopTracking, flushNow } from './history.js';
@@ -152,6 +152,7 @@ export async function loadMovie(id) {
 window.playMovie = function (id) {
     screens.player.classList.remove('hidden');
     screens.player.classList.add('flex');
+    handleOrientationChange();
     loadMovie(id);
 };
 
