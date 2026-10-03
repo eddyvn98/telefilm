@@ -2,7 +2,7 @@ import { state, updateState, tg, screens } from './state.js';
 
 // ── Cinema Mode (Manual Toggle Only) ─────────────────────────────────────
 // NOTE: Automatic fullscreen on landscape rotation is handled purely by CSS
-// @media (orientation: landscape) in cinema.css — no JS needed, no flash.
+// @media (orientation: landscape) + coarse pointer in cinema.css — desktop is excluded.
 
 // ── Enter Cinema Fullscreen (manual button) ───────────────────────────────
 
@@ -29,18 +29,16 @@ export function enterCinemaFullscreen() {
 // ── Exit Cinema Mode (manual button or portrait rotation) ─────────────────
 
 export function exitCinemaMode() {
-    if (!state.isCinemaMode) return;
+    if (state.isCinemaMode) updateState({ isCinemaMode: false });
 
-    updateState({ isCinemaMode: false });
     screens.player.classList.remove('cinema-mode-active');
-
+    document.body.classList.remove('in-player-landscape');
     removeCinemaCloseBtn();
     clearTimeout(state.controlsTimeout);
 
     if (state.player) {
         const playerWrapper = state.player.elements.container;
         playerWrapper.classList.remove('cinema-fullscreen');
-        state.player.muted = true;
     }
 
     const icon = document.getElementById('cinema-icon');
@@ -54,7 +52,7 @@ export function exitCinemaMode() {
 // Uses a matchMedia listener — fires in sync with CSS @media queries,
 // avoiding the double-reflow that debounced resize/orientationchange caused.
 
-const landscapeQuery = window.matchMedia('(orientation: landscape)');
+const landscapeQuery = window.matchMedia('(orientation: landscape) and (hover: none) and (pointer: coarse)');
 
 function onOrientationChange(e) {
     if (screens.player.classList.contains('hidden')) return;
@@ -89,12 +87,15 @@ function createCinemaCloseBtn() {
     closeBtn.className = 'cinema-close-btn visible';
     closeBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
     closeBtn.setAttribute('aria-label', 'Thoát fullscreen');
-    closeBtn.addEventListener('click', () => {
-        if (state.isCinemaMode) {
-            exitCinemaMode();
+    closeBtn.addEventListener('pointerdown', (event) => event.stopPropagation());
+    closeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        // This is a Back button, not a rotate hint: always leave the player screen.
+        if (typeof window.closePlayer === 'function') {
+            window.closePlayer();
         } else {
-            // Landscape auto-mode: just trigger exit via orientation (user rotates back)
-            // or provide a simple visual feedback — do nothing (user rotates back)
+            exitCinemaMode();
         }
     });
     document.body.appendChild(closeBtn);
@@ -131,9 +132,10 @@ window.toggleCinemaMode = function () {
     }
 };
 
-// ── handleOrientationChange: exported as no-op for backwards compatibility ─
-// (player-page.js imports this — keep export to avoid import errors)
-export const handleOrientationChange = () => { };
+// Sync immediately when a movie is opened while the phone is already landscape.
+export function handleOrientationChange() {
+    onOrientationChange(landscapeQuery);
+}
 
 // ── Manual Rotate Video ───────────────────────────────────────────────────
 
