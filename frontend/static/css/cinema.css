@@ -27,7 +27,7 @@
 
 /* ── Auto Fullscreen on Landscape (CSS-native, zero JS lag) ─────────────── */
 /* Browser applies this in 1 layout pass during rotation — no flash on iOS   */
-@media (orientation: landscape) {
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
     #player-screen:not(.hidden) .plyr {
         position: fixed !important;
         inset: 0 !important;
@@ -99,7 +99,7 @@
     position: fixed;
     top: env(safe-area-inset-top, 20px);
     top: max(env(safe-area-inset-top), 20px);
-    left: 20px;
+    left: max(env(safe-area-inset-left), 12px);
     width: 44px;
     height: 44px;
     border-radius: 50%;
@@ -286,6 +286,17 @@
 .plyr__time,
 .plyr__menu__container {
     z-index: 100 !important;
+    pointer-events: auto !important;
+}
+
+.plyr__control,
+.cinema-close-btn {
+    touch-action: manipulation;
+}
+
+/* Keep the center play button above the gesture surface as well. */
+.plyr__control--overlaid {
+    z-index: 110 !important;
     pointer-events: auto !important;
 }
 
